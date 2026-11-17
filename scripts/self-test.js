@@ -70,6 +70,17 @@ function testAsync(name, fn) {
   asyncTests.push({ name, fn });
 }
 
+/**
+ * Czyta plik repo z normalizacją końców linii.
+ *
+ * Windows z `core.autocrlf=true` (i część edytorów) zapisuje CRLF, a testy
+ * porównują wielolinijkowe fragmenty źródeł — bez normalizacji `indexOf`/regex
+ * z `\n` przestają trafiać i „źródło się zmieniło”, choć nic się nie zmieniło.
+ */
+function readRepo(...parts) {
+  return fs.readFileSync(path.join(__dirname, '..', ...parts), 'utf8').replace(/\r\n/g, '\n');
+}
+
 async function withStore(opts, fn) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-attachments-'));
   try {
@@ -1013,9 +1024,9 @@ testAsync('uszkodzony plik nie wywala notatek', async () => {
 });
 
 test('notatka jest na kafelku i w szczegółach, w kolorze motywu', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
-  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'native.css'), 'utf8');
-  const index = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const app = readRepo('public', 'app.js');
+  const css = readRepo('public', 'native.css');
+  const index = readRepo('public', 'index.html');
 
   // Kafelek dnia rysuje plakietkę; początek linii metadanych zostaje bez zmian.
   assert.match(app, /function noteBadge\(/);
@@ -1338,14 +1349,14 @@ testAsync('uszkodzony manifest to błąd publikacji, nie brak wydania', async ()
 test('strona aplikacji prowadzi do stałego adresu APK', () => {
   // Nowy interfejs nie ma stopki z linkiem — pobieranie APK jest w Opcjach →
   // „Aplikacja Android”, pod stałym adresem `/api/app/apk`.
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   assert.match(app, /href="\/api\/app\/apk"/);
   assert.match(app, /fetch\('\/api\/app\/latest'/);
 });
 
 console.log('\nInterfejs nowej aplikacji (port widoku z APK):');
 test('katalog stylów ma wszystkie 20 pozycji z natywnej aplikacji', () => {
-  const styles = fs.readFileSync(path.join(__dirname, '..', 'public', 'styles.js'), 'utf8');
+  const styles = readRepo('public', 'styles.js');
   for (const id of [
     'lg1-dark', 'lg1-light', 'lg2-dark', 'lg2-light', 'lg3-dark', 'lg3-light',
     'visionos-dark', 'visionos-light', 'visionos-perf-dark', 'visionos-perf-light',
@@ -1406,21 +1417,21 @@ test('style w webie zgadzają się z StyleCatalog.kt (id, podpis, grupa, jasnoś
 test('plan zmienia się tylko z Opcji — bez skrótu w nagłówku', () => {
   // Nagłówek ma tylko „Odśwież”. Wybór planu jest w Opcjach → Plan →
   // „Wybór planu”, więc skrót „Plan” w prawym górnym rogu zniknął (APK 1.8).
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const html = readRepo('public', 'index.html');
   assert.ok(!html.includes('btnGroup'), 'nagłówek nie może mieć przycisku „Plan”');
   assert.match(html, /id="btnRefresh"/, 'odświeżanie zostaje w nagłówku');
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   assert.ok(!app.includes("$('btnGroup')"), 'nie może zostać nasłuch usuniętego przycisku');
 });
 
 test('bootstrap HTML ustawia styl przed pierwszym malowaniem', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const html = readRepo('public', 'index.html');
   // Bootstrap jest osobnym plikiem (CSP nie dopuszcza inline <script>), ale
   // nadal musi być w <head> PRZED arkuszem — inaczej zimny start mignie tłem.
   assert.match(html, /<script src="\/theme-boot\.js\?v=\d+"><\/script>/);
   assert.ok(html.indexOf('theme-boot.js') < html.indexOf('native.css'),
     'bootstrap musi ładować się przed arkuszem');
-  const boot = fs.readFileSync(path.join(__dirname, '..', 'public', 'theme-boot.js'), 'utf8');
+  const boot = readRepo('public', 'theme-boot.js');
   assert.match(boot, /'visionos-perf-dark': '#05070d'/);
   assert.match(boot, /'mix-light': '#f6eefb'/, 'kolor nowego motywu w bootstrapie');
   assert.match(boot, /root\.dataset\.style = picked/);
@@ -1443,15 +1454,15 @@ test('bootstrap HTML ustawia styl przed pierwszym malowaniem', () => {
 });
 
 test('arkusz nowej powłoki nie używa backdrop-filter (jak APK)', () => {
-  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'native.css'), 'utf8');
+  const css = readRepo('public', 'native.css');
   assert.equal(/backdrop-filter:\s*(?!none)/.test(css), false, 'blur nie jest częścią nowej powłoki');
   assert.match(css, /\.aurora/, 'brak tła aurora');
   assert.match(css, /\.picker-card/, 'brak stylów pickera wymiarów');
 });
 
 test('wybór planu jest w ekranie powitalnym i w Opcjach → Wybór planu', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const html = readRepo('public', 'index.html');
+  const app = readRepo('public', 'app.js');
   assert.match(html, /id="welcomePicker"/);
   assert.match(html, /<script src="\/selection\.js/);
   assert.match(html, /<script src="\/wizard\.js/);
@@ -1621,7 +1632,7 @@ test('wybór planu rośnie krok po kroku: rocznik → kierunek → specjalność
   assert.deepEqual(W.stepsFor({ nabor: '2024', field: 'Informatyka', mode: 'S' }),
     ['nabor', 'kierunek', 'spec', 'tryb', 'plan']);
 
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   // Jeden otwarty krok + zwinięte podsumowania; bez arkusza i bez paska kroków.
   assert.match(app, /function pickerHtml\(/);
   assert.match(app, /PW\.stepsFor\(state\.sel\)/);
@@ -1689,14 +1700,14 @@ test('szukanie kierunku po kilku literach — bez ogonków i z priorytetem pocz�
 });
 
 test('zaznaczenie widać w kółku, a pasek akcji jest przyklejony do dołu', () => {
-  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'native.css'), 'utf8');
+  const css = readRepo('public', 'native.css');
   // Kropka w kółku rośnie po zaznaczeniu; wcześniej kółko nigdy się nie wypełniało,
   // a zaznaczenie było widoczne tylko jako tło całego kafelka.
   assert.match(css, /\.radio-mark::after \{[\s\S]*?transform: scale\(0\)/);
   assert.match(css, /\.radio-row\[aria-checked="true"\] \.radio-mark::after \{ transform: scale\(1\); \}/);
   assert.match(css, /\.radio-row\[aria-pressed="true"\] \.radio-mark::after \{ transform: scale\(1\); \}/);
   assert.match(css, /\.wiz-actions \{[\s\S]*?position: sticky;/);
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   assert.match(app, /aria-pressed="\$\{on \? 'true' : 'false'\}"/);
 });
 
@@ -1778,7 +1789,7 @@ test('odcisk scalonego planu bierze treść grup, nie numery wersji', () => {
 });
 
 test('tożsamość wersji planu to odcisk treści, nie licznik procesu', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   assert.match(app, /function samePlanVersion\(known, server\)/);
   // Kolejność porównania: odcisk → czas pobrania → numer wersji (ostatnia deska).
   const body = app.slice(
@@ -1794,7 +1805,7 @@ test('tożsamość wersji planu to odcisk treści, nie licznik procesu', () => {
 });
 
 test('aplikacja sprawdza w tle, czy plan się zmienił', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   assert.match(app, /async function checkPlanVersion\(/);
   assert.match(app, /const VERSION_POLL_MS = 5 \* 60 \* 1000/);
   assert.match(app, /setInterval\(\(\) => \{ checkPlanVersion\(\); \}, VERSION_POLL_MS\)/);
@@ -1806,7 +1817,7 @@ test('aplikacja sprawdza w tle, czy plan się zmienił', () => {
 });
 
 test('krok „Rocznik” dociąga listę także z Opcji → Wybór planu', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   // Powitanie i panel Opcji rysują ten sam picker, więc listę kierunków
   // dociąga jedno miejsce — wcześniej tylko powitanie (użytkownik z zapisanym
   // planem widział „katalog nie ma roczników” bez wyjścia).
@@ -1818,7 +1829,7 @@ test('krok „Rocznik” dociąga listę także z Opcji → Wybór planu', () =>
 });
 
 test('pusty plan mówi wprost, że to normalne, i daje zmianę rocznika', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   assert.match(app, /Ten plan nie ma zajęć/);
   assert.match(app, /Na starszych rocznikach to normalne/);
   assert.match(app, /data-empty-action="pick">Zmień rocznik lub plan/);
@@ -1826,7 +1837,7 @@ test('pusty plan mówi wprost, że to normalne, i daje zmianę rocznika', () => 
 });
 
 test('link z całym planem otwiera plan na świeżej przeglądarce', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   // `?groups=` jest tak samo ważne jak stary `?group=` — inaczej aplikacja
   // kasowała własny adres i pokazywała kreator.
   assert.match(app, /state\.needsGroup = !prefs\.hasChosenGroup && !query\.group && !queryGroups\.length/);
@@ -1835,7 +1846,7 @@ test('link z całym planem otwiera plan na świeżej przeglądarce', () => {
 });
 
 test('szkic wyboru w Opcjach nie zmienia planu pod spodem', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   // Kroki pickera zmieniają `state.sel` od razu, więc bez cofnięcia szkicu
   // karta „Plan” mówiła „Informatyka · 2023/2024”, pokazując plan 2. roku.
   assert.match(app, /state\.wizard\.applied = \{ sel: \{ \.\.\.state\.sel \}, site: \{ \.\.\.state\.site \} \}/);
@@ -1848,7 +1859,7 @@ test('szkic wyboru w Opcjach nie zmienia planu pod spodem', () => {
 });
 
 test('animacja wczytywania trwa do najnowszego planu (bez wyścigu żądań)', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   // Dwa wczytania mogą iść naraz: wybór planu, a zaraz po nim dodanie grup.
   // Odpowiedź starszego przychodzi pierwsza — nie może zgasić animacji ani
   // podmienić planu na niepełny.
@@ -1864,8 +1875,8 @@ test('animacja wczytywania trwa do najnowszego planu (bez wyścigu żądań)', (
 });
 
 test('panel Opcji animuje się tylko przy zmianie strony (bez powtórek)', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
-  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'native.css'), 'utf8');
+  const app = readRepo('public', 'app.js');
+  const css = readRepo('public', 'native.css');
   // Nawigacja stron panelu podaje kierunek; odświeżenie treści (wydanie APK,
   // aktualizacja PWA, zmiana planu) nie może powtarzać animacji w bok.
   assert.match(app, /function renderSettings\(\{ keepScroll = false, direction = '' \} = \{\}\)/);
@@ -1878,7 +1889,7 @@ test('panel Opcji animuje się tylko przy zmianie strony (bez powtórek)', () =>
 });
 
 test('kafelek dnia w widoku Semestr otwiera ten dzień w widoku Dzień', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   const body = app.slice(app.indexOf('function selectDate(iso)'), app.indexOf('function onViewportClick'));
   assert.match(body, /if \(state\.view === 'semester'\) \{/);
   assert.match(body, /state\.view = 'day';/);
@@ -1931,7 +1942,7 @@ test('zgłoszenia błędów zapisują się, wracają z listy i dają się usuną
 });
 
 test('ekran powitalny i Opcje → Wybór planu obsługują ten sam wybór', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const app = readRepo('public', 'app.js');
   // Wybór leży poza arkuszem, więc potrzebuje własnego nasłuchu — bez tego
   // na telefonie „Kierunek” nie reagował (zgłoszenie z 15.11).
   assert.match(app, /\$\('welcomePicker'\)\.addEventListener\('click'/);
@@ -1945,8 +1956,8 @@ test('ekran powitalny i Opcje → Wybór planu obsługują ten sam wybór', () =
 });
 
 test('arkusz i dialog trzymają fokus w środku (trap + inert + powrót)', () => {
-  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const app = readRepo('public', 'app.js');
+  const html = readRepo('public', 'index.html');
   // `aria-modal` niczego nie wymusza — bez pułapki Tab wychodził na stronę.
   assert.match(app, /function trapFocus\(/);
   assert.match(app, /function setBackgroundInert\(/);
@@ -2270,12 +2281,12 @@ testAsync('HTTP: nagłówki bezpieczeństwa są na HTML, JSON i plikach', async 
 
 test('HTML nie ma inline <script> — inaczej CSP musiałby dopuścić unsafe-inline', () => {
   for (const file of ['index.html', 'propozycje.html']) {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'public', file), 'utf8');
+    const html = readRepo('public', file);
     assert.equal(/<script>/.test(html), false, `${file} ma inline <script>`);
   }
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8'),
+  assert.match(readRepo('public', 'index.html'),
     /<script src="\/theme-boot\.js\?v=\d+"><\/script>/);
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'public', 'propozycje.html'), 'utf8'),
+  assert.match(readRepo('public', 'propozycje.html'),
     /<script src="\/propozycje\.js\?v=\d+"><\/script>/);
 });
 
@@ -2303,6 +2314,12 @@ testAsync('HTTP: notatki tylko dla zajęć, które są w planie', async () => {
   const cleared = await post(known, '');
   assert.equal(cleared.status, 200);
   assert.equal(JSON.parse(cleared.body).text, '');
+
+  // Usunięcie starej notatki musi działać także wtedy, gdy zajęć nie ma już
+  // w planie (uczelnia przesunęła/odwołała zajęcia) — inaczej plakietka
+  // zostaje na zawsze i nie da się jej zdjąć z aplikacji.
+  const stale = await post('2026-11-23|08:00|09:30|74858|Cw|Infor. 1st 1sem Ćw2N', '');
+  assert.equal(stale.status, 200, 'pusta treść usuwa notatkę bez sprawdzania planu');
 });
 
 (async () => {

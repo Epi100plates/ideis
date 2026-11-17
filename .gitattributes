@@ -1,0 +1,15 @@
+# Końce linii: zawsze LF w repozytorium i w roboczym katalogu.
+# Bez tego Windows z core.autocrlf=true zapisuje CRLF, a testy porównujące
+# wielolinijkowe fragmenty źródeł (self-test) potrafią się wtedy wywrócić.
+* text=auto eol=lf
+
+# Pliki binarne — bez konwersji i bez diffów tekstowych.
+*.png binary
+*.webp binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff2 binary
+*.jar binary
+*.apk binary
+*.zip binary

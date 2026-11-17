@@ -1278,7 +1278,11 @@ const server = http.createServer(async (req, res) => {
             error: 'Notatka może dotyczyć tylko zajęć z bieżącego roku akademickiego.',
           });
         }
-        if (!(await classExistsInPlan(body.classId, url))) {
+        // Usunięcie notatki nie wymaga istnienia zajęć: plan u uczelni się
+        // zmienia (zajęcia wypadają, godziny się przesuwają), a została po nich
+        // plakietka, którą trzeba móc zdjąć. Pusta treść = zawsze wolno.
+        const clearing = String(body?.text ?? '').trim().length === 0;
+        if (!clearing && !(await classExistsInPlan(body.classId, url))) {
           return json(res, 404, {
             ok: false,
             error: 'Nie znaleziono tych zajęć w planie — odśwież plan i spróbuj ponownie.',
