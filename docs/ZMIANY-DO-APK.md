@@ -1423,3 +1423,4 @@ bierze się z motywu, więc działa też w „Własnym”. `native.css` nie uży
 | dlaczego nie buduje APK | bez `keystore.properties` build na runnerze podpisałby plik innym kluczem debug i zablokował aktualizacje (podpis musi zostać ten sam co w 1.10/1.12) |
 | Packages | `docker/build-push-action` → `ghcr.io/epi100plates/ideis:{1.12,latest,sha-…}` z `Dockerfile` (obraz bez zależności npm, buduje się w ~sekundy) |
 | uprawnienia | `contents: write` + `packages: write` z `GITHUB_TOKEN`, żadnych sekretów w repo |
+| wynik 17.11.2026 | tag `v1.12` → [Release `v1.12`](https://github.com/Epi100plates/ideis/releases/tag/v1.12) z `planzajec-ideis-1.12-18.apk` (2 627 308 B, SHA-256 zgodny z manifestem) i `latest.json`; obraz `ghcr.io/epi100plates/ideis` z tagami `1.12`, `latest`, `sha-005353f`, publiczny (anonimowy `docker pull` działa) |
