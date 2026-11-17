@@ -1424,3 +1424,58 @@ bierze się z motywu, więc działa też w „Własnym”. `native.css` nie uży
 | Packages | `docker/build-push-action` → `ghcr.io/epi100plates/ideis:{1.12,latest,sha-…}` z `Dockerfile` (obraz bez zależności npm, buduje się w ~sekundy) |
 | uprawnienia | `contents: write` + `packages: write` z `GITHUB_TOKEN`, żadnych sekretów w repo |
 | wynik 17.11.2026 | tag `v1.12` → [Release `v1.12`](https://github.com/Epi100plates/ideis/releases/tag/v1.12) z `planzajec-ideis-1.12-18.apk` (2 627 308 B, SHA-256 zgodny z manifestem) i `latest.json`; obraz `ghcr.io/epi100plates/ideis` z tagami `1.12`, `latest`, `sha-005353f`, publiczny (anonimowy `docker pull` działa) |
+
+## 26. Picker kolorów motywu „Własny” od nowa (17.11.2026)
+
+Zgłoszenie: „picker kolorów działa totalnie bez sensu”. Dało się to rozłożyć na
+cztery konkretne rzeczy, a nie na „brzydki wygląd”:
+
+| Co było nie tak | Skutek dla użytkownika |
+| --- | --- |
+| w APK trzy suwaki HSV na każdy z dwóch kolorów (`Barwa`/`Nasycenie`/`Jasność`) | decyzja podejmowana w liczbach: „252° · 64% · 100%” nic nie mówi, a kolor widać tylko w kropce 24 dp |
+| suwaki obsługiwały **jeden** kanał wybierany wierszem powyżej | „Jasność 100%” znaczyła co innego dla akcentu i dla tła — bez informacji, który kolor się właśnie zmienia |
+| reguła kontrastu przyciemniała akcent **po cichu** | wybierasz `#22D3EE`, aplikacja maluje `#137382` — wybór wygląda na zepsuty |
+| kolory działały dopiero po zaznaczeniu „Własny” na liście powyżej | dotknięcie czegokolwiek nie zmieniało niczego; jedyna podpowiedź to zdanie drobnym drukiem na dole |
+
+### Nowy model (ten sam w webie i APK)
+
+| Krok | Web | APK | Po co |
+| --- | --- | --- | --- |
+| 1. gotowe motywy | 6 wierszy z parą kropek | to samo | jedno dotknięcie = gotowy, sensowny motyw |
+| 2. próbki | 8 akcentów + 6 teł | to samo | wybór „na oko”, bez znajomości kodów kolorów |
+| 3. dokładnie | natywny `input[type=color]` | kwadrat nasycenie/jasność + pasek barwy + hex | gdy próbki nie wystarczą |
+| 4. podgląd | mini-kafel zajęć + werdykt o kontraście | to samo | WYSIWYG: widać **finalną** paletę, nie wybrany surowy kolor |
+
+Kluczowa naprawa: **wybór koloru od razu włącza motyw „Własny”** —
+`applyCustomColors` (`public/app.js`) i `PlanViewModel.selectCustomTheme`
+(który dodatkowo zapisuje `styleId = custom` i przerysowuje widżety).
+
+Dane wspólne obu platform: `CUSTOM_PAIRS` / `CUSTOM_ACCENTS` /
+`CUSTOM_BACKGROUNDS` w `styles.js` oraz `CustomPairs` w Kotlinie. Pary **nie
+mają własnej listy kolorów** — biorą akcent i tło z palet katalogu
+(`customPairColors`, `CustomPairs.colors`), więc nowa paleta nie wymaga zmiany
+w dwóch miejscach. `self-test` porównuje obie listy (id par i oba zestawy
+próbek) oraz sprawdza, że każda z 48 kombinacji próbek po regule kontrastu ma
+≥ 4,0:1.
+
+Werdykt o kontraście ma jedną implementację: `customAccentReport` (JS)
+i `CustomTheme.report` (Kotlin) — oba zwracają wybrany kolor, kolor po korekcie,
+kontrast i flagę „poprawiono”.
+
+### Wersje
+
+| Co | Wartość |
+| --- | --- |
+| powłoka web | **v42** (`?v=42` w `index.html` i `SHELL_ASSETS`, `VERSION='v42'`) |
+| „Co nowego” web | **v37** |
+| APK | **1.13 (19)** (`android/version.properties`, wpis „Co nowego”) |
+
+### Weryfikacja
+
+| Sprawdzenie | Wynik |
+| --- | --- |
+| `node scripts/self-test.js` | **135 testów, 0 błędów** — nowy test pickera: próbki i pary obecne, wybór koloru włącza motyw (`state.styleId = 'custom'`), podgląd z werdyktem, zgodność `CUSTOM_ACCENTS`/`CUSTOM_BACKGROUNDS`/par z `CustomPairs.kt`, 48 kombinacji z kontrastem ≥ 4,0 |
+| `:app:testDebugUnitTest` | **278 testów, 0 błędów** (było 272) — `CustomPairsTest` (6): pary wskazują palety katalogu, kolory par pochodzą z palety, poprawność próbek, kontrast wszystkich kombinacji, raport „bez zmian” na ciemnym tle i „przyciemniony” na jasnym (`#7C5CFF` → `#6B4FDB`) |
+| `:app:lintDebug` | exit 0 (24 ostrzeżenia, 0 błędów) |
+| Chromium (`127.0.0.1:3399`) | 6 par, 8 akcentów, 6 teł; para „Papier” → `data-style=custom`, `--accent` `rgb(0, 113, 227)`, `--page` `rgb(245, 245, 247)` bez zaznaczania stylu; akcent `#22D3EE` na jasnym tle → `#137382` + zdanie „jest za jasny…”; ciemne tło → akcent bez zmian; zapis w `localStorage` (`customPrimary`, `styleId: 'custom'`) |
+| Emulator (Pixel 9 Pro, API 34, APK 1.13-debug) | „Co nowego 1.13 (19)”; Opcje → Wygląd → „Gotowe motywy” (6 par) + „Własny motyw” (8 + 6 próbek) + „Dokładny kolor” (kwadrat SV, pasek barwy, `#7C5CFF 251° · 63% · 100%`) + podgląd kafelka z plakietką „Kolos” i werdyktem „kontrast 4.5:1 — nic nie zmieniamy”; dotknięcie pary „Papier” przemalowało całą aplikację na jasny motyw, próbka `#22D3EE` na jasnym tle dała werdykt „przyciemniony do #138282” (4,2:1) |

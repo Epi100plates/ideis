@@ -1788,6 +1788,91 @@ a.text-btn { text-decoration: none; display: inline-flex; align-items: center; j
   pointer-events: none;
 }
 
+/* Gotowa para motywu „Własny”: dwie kropki (akcent + tło) zamiast jednej próbki. */
+.settings-pair-dots { flex: 0 0 auto; display: flex; align-items: center; }
+.settings-pair-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--outline);
+}
+.settings-pair-dot + .settings-pair-dot { margin-left: -6px; }
+
+/* Próbki kolorów: osiem akcentów i sześć teł pod wierszem wyboru. */
+.settings-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+.settings-swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--outline);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.settings-swatch:active { transform: scale(.92); }
+.settings-swatch.is-on { box-shadow: inset 0 0 0 2px var(--page), 0 0 0 2px var(--accent); }
+.settings-swatch:focus-visible { outline: 2px solid rgba(var(--accent-rgb), .85); outline-offset: 2px; }
+
+/* Podgląd motywu: kafel zajęć w **finalnej** palecie (po korekcie kontrastu).
+   Kolory są wpisane w atrybuty `style`, bo podgląd musi pokazywać motyw
+   „Własny” nawet wtedy, gdy w aplikacji wybrany jest inny styl. */
+.settings-preview {
+  margin-top: 4px;
+  padding: 14px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: inset 0 0 0 1px var(--outline);
+}
+.settings-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+.settings-preview-bar { flex: 0 0 auto; align-self: stretch; width: 3px; border-radius: 2px; }
+.settings-preview-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.settings-preview-title {
+  font-size: calc(14px * var(--fs));
+  line-height: 19px;
+  font-weight: 600;
+}
+.settings-preview-sub {
+  font-size: calc(11px * var(--fs));
+  line-height: 15px;
+  font-weight: 500;
+}
+.settings-preview-note {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border-radius: 8px;
+  font-size: calc(11px * var(--fs));
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.settings-preview-foot { display: flex; align-items: center; gap: 10px; }
+.settings-preview-btn {
+  flex: 0 0 auto;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: calc(13px * var(--fs));
+  font-weight: 600;
+}
+.settings-preview-caption {
+  font-size: calc(11px * var(--fs));
+  font-weight: 500;
+  letter-spacing: .3px;
+}
+
 .settings-foot,
 .settings-note {
   margin: 4px 0 0;

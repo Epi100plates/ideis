@@ -18,6 +18,15 @@ object WhatsNew {
     /** Od najnowszego wydania. Kolejne wpisy dopisujemy przy publikacji. */
     val releases: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 19,
+            versionName = "1.13",
+            items = listOf(
+                "Picker motywu „Własny” od nowa: gotowe pary (Fiolet na czerni, Papier, Lawenda…), próbki akcentów i teł oraz kwadrat nasycenie/jasność z paskiem barwy zamiast trzech suwaków bez podglądu",
+                "Zmiana koloru od razu włącza motyw „Własny” — wcześniej kolor nie działał, dopóki nie zaznaczyło się motywu na liście powyżej",
+                "Pod podglądem kafelka jest zdanie o kontraście: czy akcent został przyciemniony i do jakiej wartości",
+            ),
+        ),
+        ReleaseNotes(
             versionCode = 18,
             versionName = "1.12",
             items = listOf(

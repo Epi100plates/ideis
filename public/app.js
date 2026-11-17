@@ -30,7 +30,12 @@
     ALIASES,
     normalizeCustom,
     normalizeCustomHex,
+    customPairColors,
+    customAccentReport,
     customPalette,
+    CUSTOM_PAIRS,
+    CUSTOM_ACCENTS,
+    CUSTOM_BACKGROUNDS,
   } = window.PlanStyles;
 
   if (!STYLES || !PALETTES) {
@@ -206,7 +211,7 @@
    * Niezależna od `VERSION` w public/sw.js — tamta numeruje cache powłoki,
    * więc podbija się także przy samych poprawkach bez nowości.
    */
-  const APP_VERSION = 'v36';
+  const APP_VERSION = 'v37';
 
   const $ = (id) => document.getElementById(id);
 
@@ -3103,17 +3108,49 @@
     return pal ? cssRgb(parseArgb(pal.accent)) : 'transparent';
   }
 
+  /* --------------------------- 9b-1. Motyw „Własny” --------------------------- */
+
   /**
-   * Edytor motywu „Własny”: dwa kolory, każdy natywnym wybierakiem (na telefonie
-   * otwiera systemowy wybór koloru), z podglądem i wartością hex.
+   * Podgląd motywu: kafel zajęć w **finalnej** palecie (już po korekcie
+   * kontrastu) plus jedno zdanie o tym, co aplikacja zrobiła z akcentem.
    *
-   * Kolor zmienia motyw **od razu** (`input`), a zapis i przemalowanie listy
-   * stylów idą po zamknięciu wybieraka (`change`) — inaczej lista traciłaby
-   * zaznaczenie przy każdym ruchu palca.
+   * Bez tego zdania edytor zawsze wygląda na zepsuty: użytkownik wybiera jasny
+   * fiolet, a aplikacja maluje przyciemniony, bo inaczej plakietka notatki nie
+   * ma 4,0:1 kontrastu na tle.
+   */
+  function customLiveHtml(colors) {
+    const pal = customPalette(colors.primary, colors.background);
+    const report = customAccentReport(colors.primary, colors.background);
+    const paint = (argb) => cssRgba(parseArgb(argb));
+    const verdict = report.corrected
+      ? `Akcent ${report.picked} jest za jasny na to tło, więc aplikacja przyciemnia go do <b>${report.applied}</b>.`
+      : `Akcent ${report.applied} ma na tym tle kontrast <b>${report.contrast.toFixed(1)}:1</b> — nic nie zmieniamy.`;
+    return `<div class="settings-preview" style="background:linear-gradient(160deg, ${paint(pal.gradient[0])}, ${paint(pal.gradient[1])})">
+        <div class="settings-preview-card" style="background:${paint(pal.panelSolid)};box-shadow:inset 0 0 0 1px ${paint(pal.edge)}">
+          <span class="settings-preview-bar" style="background:${paint(pal.accent)}"></span>
+          <span class="settings-preview-text">
+            <span class="settings-preview-title" style="color:${paint(pal.text)}">Analiza matematyczna 1</span>
+            <span class="settings-preview-sub" style="color:${paint(pal.textSoft)}">W12 30 · Ćwiczenia · stacjonarnie</span>
+          </span>
+          <span class="settings-preview-note" style="background:${paint(pal.accentSoft)};color:${paint(pal.accent)}">Kolos</span>
+        </div>
+        <div class="settings-preview-foot">
+          <span class="settings-preview-btn" style="background:${paint(pal.accent)};color:${paint(pal.accentOn)}">Dalej</span>
+          <span class="settings-preview-caption" style="color:${paint(pal.textSoft)}">akcent ${report.applied} · kontrast ${report.contrast.toFixed(1)}:1</span>
+        </div>
+      </div>
+      <p class="settings-note">${verdict} Tonację wyznacza kolor tła: ${report.dark ? 'ciemne tło daje jasny tekst' : 'jasne tło daje ciemny tekst'}.</p>`;
+  }
+
+  /**
+   * Edytor motywu „Własny” w trzech krokach: gotowa para → próbki → kolor
+   * dokładny. Wcześniej były tu tylko dwa natywne wybieraki koloru, więc
+   * użytkownik wybierał kolor „w ciemno” i nie wiedział, że motyw włączy się
+   * dopiero po zaznaczeniu „Własny” na liście powyżej.
    */
   function settingsCustomHtml() {
     const colors = normalizeCustom(state.custom.primary, state.custom.background);
-    const active = normalizeStyle(state.styleId) === 'custom';
+
     const row = (id, labelId, title, sub, value) => `<label class="settings-color" for="${id}">
       <span class="settings-color-text">
         <span class="settings-color-title">${esc(title)}</span>
@@ -3124,13 +3161,125 @@
       <input type="color" id="${id}" class="settings-color-input" value="${esc(value)}"
              aria-label="${esc(title)} motywu">
     </label>`;
-    return `<p class="settings-group-head">Własny motyw</p>
+
+    const swatches = (attr, list, current, label) => `<div class="settings-swatches" role="group" aria-label="${esc(label)}">
+      ${list.map((hex) => {
+      const on = hex.toUpperCase() === current.toUpperCase();
+      return `<button type="button" class="settings-swatch${on ? ' is-on' : ''}" ${attr}="${esc(hex)}"
+          aria-pressed="${on}" aria-label="${esc(hex)}" style="background:${hex}"></button>`;
+    }).join('')}
+    </div>`;
+
+    const pairs = CUSTOM_PAIRS.map((pair, index) => {
+      const pairColors = customPairColors(pair.style);
+      const selected = pairColors.primary === colors.primary && pairColors.background === colors.background;
+      return `${index > 0 ? settingsDivider() : ''}<button type="button" class="settings-style"
+          data-settings-pair="${esc(pair.style)}" role="radio" aria-checked="${selected ? 'true' : 'false'}">
+        <span class="settings-style-text">
+          <span class="settings-style-title${selected ? ' is-selected' : ''}">${esc(pair.name)}</span>
+          <span class="settings-style-sub">${esc(`${pairColors.primary} · tło ${pairColors.background}`)}</span>
+        </span>
+        <span class="settings-pair-dots" aria-hidden="true">
+          <span class="settings-pair-dot" style="background:${pairColors.primary}"></span>
+          <span class="settings-pair-dot" style="background:${pairColors.background}"></span>
+        </span>
+        <span class="radio-mark" aria-hidden="true"></span>
+      </button>`;
+    }).join('');
+
+    return `<p class="settings-group-head">Gotowe motywy</p>
+      ${settingsCard(pairs)}
+      <p class="settings-group-head">Własny motyw</p>
       ${settingsCard(`${row('customPrimary', 'customPrimaryHex', 'Kolor główny', 'akcent: przyciski, plakietki notatek', colors.primary)}
+        ${swatches('data-custom-accent', CUSTOM_ACCENTS, colors.primary, 'Próbki koloru głównego')}
         ${settingsDivider()}
-        ${row('customBackground', 'customBackgroundHex', 'Kolor tła', 'o jego jasności decyduje cały motyw', colors.background)}`)}
-      <p class="settings-note">Motyw działa po wybraniu „Własny” z listy powyżej${active ? '' : ' — teraz wybrany jest inny styl'}.
-        Jasność motywu wynika z koloru tła, a jasny akcent jest przyciemniany do czytelnego kontrastu.
-        Widżety na pulpicie biorą te same dwa kolory.</p>`;
+        ${row('customBackground', 'customBackgroundHex', 'Kolor tła', 'o jego jasności decyduje cały motyw', colors.background)}
+        ${swatches('data-custom-bg', CUSTOM_BACKGROUNDS, colors.background, 'Próbki koloru tła')}`)}
+      <div data-custom-live>${customLiveHtml(colors)}</div>
+      <p class="settings-note">Zmiana koloru od razu włącza motyw „Własny”.
+        Widżety na pulpicie biorą te same dwa kolory, więc nie trzeba ich dodawać od nowa.</p>`;
+  }
+
+  /** Odświeżenie samego podglądu — bez przerysowania arkusza (palec na wybieraku). */
+  function repaintCustomEditor(root) {
+    if (!root) return;
+    const mark = (attr, current) => {
+      root.querySelectorAll(`[${attr}]`).forEach((button) => {
+        const on = button.getAttribute(attr).toUpperCase() === current.toUpperCase();
+        button.classList.toggle('is-on', on);
+        button.setAttribute('aria-pressed', String(on));
+      });
+    };
+    mark('data-custom-accent', state.custom.primary);
+    mark('data-custom-bg', state.custom.background);
+    const primaryHex = root.querySelector('#customPrimaryHex');
+    if (primaryHex) primaryHex.textContent = state.custom.primary;
+    const backgroundHex = root.querySelector('#customBackgroundHex');
+    if (backgroundHex) backgroundHex.textContent = state.custom.background;
+    const live = root.querySelector('[data-custom-live]');
+    if (live) live.innerHTML = customLiveHtml(state.custom);
+    const swatch = root.querySelector('[data-settings-style="custom"] .settings-swatch');
+    if (swatch) swatch.style.background = cssRgb(parseArgb(paletteOf('custom').accent));
+  }
+
+  /**
+   * Ustawia oba kolory motywu **i od razu go włącza**.
+   *
+   * Wcześniej kolory działały dopiero po ręcznym zaznaczeniu „Własny”, więc
+   * dotknięcie próbki nie zmieniało niczego i wyglądało na zepsute narzędzie.
+   * `commit` przerysowuje arkusz (klik próbki), bez `commit` odświeżamy tylko
+   * podgląd — inaczej natywny wybierak koloru zamykałby się przy każdym ruchu.
+   */
+  function applyCustomColors(primary, background, { commit = false } = {}) {
+    const next = normalizeCustom(primary, background);
+    const switching = normalizeStyle(state.styleId) !== 'custom';
+    state.custom = next;
+    state.styleId = 'custom';
+    writePrefs({
+      customPrimary: next.primary,
+      customBackground: next.background,
+      styleId: 'custom',
+      theme: 'custom',
+      themePicked: true,
+      styleEpoch: STYLE_EPOCH,
+    });
+    applyStyle('custom');
+    // Plan rysuje kolory przez zmienne CSS, więc przy samej zmianie koloru nie
+    // ma czego przerysowywać — render tylko wtedy, gdy zmienił się styl.
+    if (switching) {
+      syncUrl();
+      render();
+    }
+    if (commit) refreshSettings();
+    else repaintCustomEditor($('sheetBody'));
+  }
+
+  /**
+   * Nasłuch wybieraków koloru. Arkusz Opcji rysuje się od nowa po każdym
+   * wejściu na stronę, więc słuchacze podpinamy przy każdym renderze —
+   * delegacja zdarzeń nie obsłuży `input` z `type="color"`.
+   */
+  function bindCustomColors(root) {
+    if (!root) return;
+    const fields = [
+      { id: 'customPrimary', key: 'primary' },
+      { id: 'customBackground', key: 'background' },
+    ];
+    fields.forEach(({ id, key }) => {
+      const input = root.querySelector(`#${id}`);
+      if (!input) return;
+      const apply = (commit) => {
+        const hex = normalizeCustomHex(input.value);
+        if (!hex) return;
+        applyCustomColors(
+          key === 'primary' ? hex : state.custom.primary,
+          key === 'background' ? hex : state.custom.background,
+          { commit },
+        );
+      };
+      input.addEventListener('input', () => apply(false));
+      input.addEventListener('change', () => apply(true));
+    });
   }
 
   function settingsLookHtml() {
@@ -3156,45 +3305,6 @@
     subtitle: 'Ten sam wybór co w natywnej aplikacji — zmiana działa od razu.',
     back: true,
   })}${rows}${settingsCustomHtml()}`;
-  }
-
-  /**
-   * Nasłuch wybieraków koloru. Arkusz Opcji rysuje się od nowa po każdym
-   * wejściu na stronę, więc słuchacze podpinamy przy każdym renderze —
-   * delegacja zdarzeń nie obsłuży `input` z `type="color"`.
-   */
-  function bindCustomColors(root) {
-    if (!root) return;
-    const fields = [
-      { id: 'customPrimary', key: 'primary', label: 'customPrimaryHex' },
-      { id: 'customBackground', key: 'background', label: 'customBackgroundHex' },
-    ];
-    fields.forEach(({ id, key, label }) => {
-      const input = root.querySelector(`#${id}`);
-      if (!input) return;
-      const apply = () => {
-        const hex = normalizeCustomHex(input.value);
-        if (!hex) return;
-        state.custom = normalizeCustom(
-          key === 'primary' ? hex : state.custom.primary,
-          key === 'background' ? hex : state.custom.background,
-        );
-        const text = root.querySelector(`#${label}`);
-        if (text) text.textContent = state.custom[key];
-        // Próbka w wierszu „Własny” musi pokazać nowy akcent od razu.
-        const swatch = root.querySelector('[data-settings-style="custom"] .settings-swatch');
-        if (swatch) swatch.style.background = cssRgb(parseArgb(paletteOf('custom').accent));
-        applyStyle(state.styleId);
-      };
-      input.addEventListener('input', apply);
-      input.addEventListener('change', () => {
-        apply();
-        writePrefs({
-          customPrimary: state.custom.primary,
-          customBackground: state.custom.background,
-        });
-      });
-    });
   }
 
   function settingsRootHtml(now) {
@@ -5000,6 +5110,7 @@
 
     $('sheetBody').addEventListener('click', (event) => {
       const target = event.target.closest(`[data-settings-page],[data-settings-group],[data-settings-style],`
+        + '[data-settings-pair],[data-custom-accent],[data-custom-bg],'
         + '[data-plan-refresh],[data-close-sheet],[data-whats-new-ok],[data-install-guide],[data-feedback-kind],'
         + '[data-add-file],[data-add-link],[data-file-download],[data-file-delete],[data-link-delete],[data-materials-ack],'
         + '[data-note-save],[data-note-chip],[data-note-clear],'
@@ -5086,6 +5197,20 @@
         // Zmiana stylu działa od razu, bez zamykania panelu (jak w APK 1.7).
         selectStyle(target.dataset.settingsStyle);
         refreshSettings();
+        return;
+      }
+      if (target.dataset.settingsPair) {
+        // Gotowa para: ustawia oba kolory i od razu włącza motyw „Własny”.
+        const pair = customPairColors(target.dataset.settingsPair);
+        applyCustomColors(pair.primary, pair.background, { commit: true });
+        return;
+      }
+      if (target.dataset.customAccent) {
+        applyCustomColors(target.dataset.customAccent, state.custom.background, { commit: true });
+        return;
+      }
+      if (target.dataset.customBg) {
+        applyCustomColors(state.custom.primary, target.dataset.customBg, { commit: true });
         return;
       }
       if (target.hasAttribute('data-close-sheet')) {

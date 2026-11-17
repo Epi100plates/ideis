@@ -486,6 +486,65 @@
     };
   }
 
+  /* ------------------------------------------------------------------------
+     Wybieranie kolorów motywu „Własny”.
+
+     Model jest ten sam w webie i w APK (`ui/theme/CustomPairs.kt`), bo inaczej
+     użytkownik dostaje dwa różne edytory tego samego motywu:
+
+       1. gotowe pary — jedno dotknięcie daje sensowny motyw; kolory bierzemy
+          z istniejących palet, więc nie ma tu drugiej listy kolorów do
+          rozjechania się z katalogiem,
+       2. próbki — osiem akcentów i sześć teł, czyli wybór „na oko”,
+       3. dokładnie — systemowy wybierak / kwadrat SV, gdy próbki nie wystarczą.
+
+     `customAccentReport` mówi wprost, co aplikacja zrobi z wybranym kolorem:
+     akcent jest dociągany do kontrastu 4,0, więc bez tego zdania wybór zawsze
+     wyglądałby na zepsuty (wybierasz jasny fiolet, widzisz ciemniejszy).
+     ---------------------------------------------------------------------- */
+
+  /** Pary na start: identyfikator motywu źródłowego + nazwa dla użytkownika. */
+  const CUSTOM_PAIRS = [
+    { style: 'violet-dark', name: 'Fiolet na czerni' },
+    { style: 'pink-dark', name: 'Róż w mroku' },
+    { style: 'mix-dark', name: 'Fiolet z różem' },
+    { style: 'lg3-dark', name: 'Ciepły grafit' },
+    { style: 'apple', name: 'Papier' },
+    { style: 'violet-light', name: 'Lawenda' },
+  ];
+
+  /** Próbki akcentu — barwy, które dobrze wychodzą i na ciemnym, i na jasnym tle. */
+  const CUSTOM_ACCENTS = [
+    '#7C5CFF', '#22D3EE', '#34D399', '#F59E0B',
+    '#F472B6', '#60A5FA', '#A3E635', '#FB7185',
+  ];
+
+  /** Próbki tła: trzy ciemne tony i trzy jasne — o tonacji decyduje ten kolor. */
+  const CUSTOM_BACKGROUNDS = ['#0C0A18', '#05070C', '#141018', '#F4F5F8', '#FFF7F0', '#F2F7FF'];
+
+  /** Kolory pary `CUSTOM_PAIRS` — akcent i tło z gotowej palety. */
+  function customPairColors(styleId) {
+    const pal = PALETTES[styleId];
+    if (!pal) return { ...CUSTOM_DEFAULT };
+    return { primary: `#${pal.accent.slice(2)}`, background: `#${pal.page.slice(2)}` };
+  }
+
+  /** Co aplikacja zrobi z wybranym akcentem: ile kontrastu i czy go poprawi. */
+  function customAccentReport(primary, background) {
+    const colors = normalizeCustom(primary, background);
+    const bg = hexToRgb(colors.background);
+    const picked = hexToRgb(colors.primary);
+    const dark = relativeLuminance(bg) < CUSTOM_DARK_LUMINANCE;
+    const applied = readableAccent(picked, bg, dark);
+    return {
+      picked: colors.primary,
+      applied: `#${rgbHex(applied)}`,
+      contrast: contrast(applied, bg),
+      corrected: rgbHex(applied) !== rgbHex(picked),
+      dark,
+    };
+  }
+
   /** Stare identyfikatory z wersji web — migracja bez błędu. */
   const ALIASES = {
     glass: 'lg2-dark',
@@ -500,8 +559,13 @@
     DEFAULT_STYLE,
     ALIASES,
     CUSTOM_DEFAULT,
+    CUSTOM_PAIRS,
+    CUSTOM_ACCENTS,
+    CUSTOM_BACKGROUNDS,
     normalizeCustom,
     normalizeCustomHex,
+    customPairColors,
+    customAccentReport,
     customPalette,
   };
 }(typeof window !== 'undefined' ? window : globalThis));

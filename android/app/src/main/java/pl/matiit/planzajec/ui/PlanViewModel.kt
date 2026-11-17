@@ -46,6 +46,7 @@ import pl.matiit.planzajec.ui.settings.FeedbackKind
 import pl.matiit.planzajec.ui.selection.SiteLabels
 import pl.matiit.planzajec.ui.selection.WizardContext
 import pl.matiit.planzajec.ui.theme.CustomColors
+import pl.matiit.planzajec.ui.theme.CustomTheme
 import pl.matiit.planzajec.ui.theme.StyleCatalog
 import pl.matiit.planzajec.widget.WidgetUpdater
 
@@ -861,14 +862,26 @@ class PlanViewModel(
 
     /**
      * Zmiana barw motywu „Własny”. Zapis trwały od razu (kolor wybierany
-     * suwakiem zmienia się często — nie ma „zatwierdź”), a widżet przerysowuje
-     * się **wymuszonym** odświeżeniem, bo `styleId` się nie zmienia.
+     * próbką zmienia się często — nie ma „zatwierdź”), a widżet przerysowuje
+     * się **wymuszonym** odświeżeniem, bo odcień nie jest widoczny w odcisku.
+     *
+     * Wybór koloru **włącza też motyw „Własny”**: wcześniej kolory działały
+     * dopiero po ręcznym zaznaczeniu go na liście stylów, więc dotknięcie
+     * próbki nie zmieniało niczego i wyglądało na zepsute.
      */
     fun selectCustomTheme(primary: String, background: String) {
         val colors = CustomColors.normalize(primary, background)
-        if (colors == _state.value.customTheme) return
-        repository.selectCustomTheme(colors)
-        _state.update { it.copy(customTheme = colors) }
+        val colorsChanged = colors != _state.value.customTheme
+        val styleChanged = _state.value.styleId != CustomTheme.ID
+        if (!colorsChanged && !styleChanged) return
+        if (colorsChanged) {
+            repository.selectCustomTheme(colors)
+            _state.update { it.copy(customTheme = colors) }
+        }
+        if (styleChanged) {
+            repository.selectStyle(CustomTheme.ID)
+            _state.update { it.copy(styleId = CustomTheme.ID) }
+        }
         onStyleChanged()
     }
 

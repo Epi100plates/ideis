@@ -1500,8 +1500,10 @@ test('motyw własny liczy paletę z dwóch kolorów według reguł z CustomTheme
   assert.ok(midTone.text.endsWith('12141B'), 'jasny fiolet → ciemny tekst');
 });
 
-test('Opcje → Wygląd mają wybór dwóch kolorów motywu własnego', () => {
+test('Opcje → Wygląd: picker kolorów prowadzi krok po kroku i pokazuje efekt', () => {
+  const web = loadPlanStyles();
   const app = readRepo('public', 'app.js');
+  const styles = readRepo('public', 'styles.js');
   const css = readRepo('public', 'native.css');
 
   assert.match(app, /function settingsCustomHtml\(/);
@@ -1509,7 +1511,6 @@ test('Opcje → Wygląd mają wybór dwóch kolorów motywu własnego', () => {
   assert.match(app, /row\('customBackground', 'customBackgroundHex'/);
   assert.match(app, /type="color"/);
   assert.match(app, /function bindCustomColors\(/);
-  assert.match(app, /writePrefs\(\{\s*\n?\s*customPrimary/);
   assert.match(app, /function paletteOf\(/);
   assert.match(app, /customPalette\(state\.custom\.primary, state\.custom\.background\)/);
   // Strona „Wygląd” musi podpinać słuchacze po każdym renderze (arkusz
@@ -1517,6 +1518,63 @@ test('Opcje → Wygląd mają wybór dwóch kolorów motywu własnego', () => {
   assert.match(app, /if \(page === 'look'\) bindCustomColors\(body\)/);
   assert.match(css, /\.settings-color-input/);
   assert.match(css, /\.settings-color-swatch/);
+
+  // --- trzy kroki: gotowa para → próbki → kolor dokładny ---------------
+  assert.match(app, /Gotowe motywy/, 'sekcja gotowych par');
+  assert.match(app, /data-settings-pair="\$\{esc\(pair\.style\)\}"/, 'wiersz pary z odnośnikiem do motywu');
+  assert.match(app, /data-custom-accent/, 'próbki akcentu');
+  assert.match(app, /data-custom-bg/, 'próbki tła');
+  assert.match(css, /\.settings-swatches/, 'próbki mają własny układ');
+  assert.match(css, /\.settings-swatch\.is-on/, 'zaznaczona próbka jest widoczna');
+  assert.match(css, /\.settings-pair-dots/, 'para pokazuje dwa kolory');
+
+  // Wybór koloru **od razu** włącza motyw „Własny” — wcześniej kolor nie
+  // działał, dopóki użytkownik nie zaznaczył „Własny” na liście powyżej.
+  assert.match(app, /function applyCustomColors\(/, 'wspólna droga ustawiania kolorów');
+  assert.match(app, /state\.styleId = 'custom'/, 'kolor włącza motyw własny');
+  const applyBody = app.slice(app.indexOf('function applyCustomColors('));
+  assert.match(applyBody.slice(0, 900), /styleId: 'custom'/, 'wybór stylu idzie też do zapisu');
+
+  // Podgląd liczy **finalną** paletę i mówi, czy akcent został poprawiony.
+  assert.match(app, /function customLiveHtml\(/);
+  assert.match(app, /customAccentReport\(/, 'podgląd używa raportu o kontraście');
+  assert.match(css, /\.settings-preview/, 'podgląd ma styl');
+  assert.ok(styles.includes('function customAccentReport('), 'styles.js: brak raportu o akcencie');
+
+  // --- dane wspólne z APK ---------------------------------------------
+  const kotlin = readRepo('android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'ui', 'theme', 'CustomPairs.kt');
+  const hexList = (source, name) => {
+    const block = source.slice(source.indexOf(`${name} = listOf(`), source.indexOf(')', source.indexOf(`${name} = listOf(`)));
+    return (block.match(/#[0-9A-F]{6}/g) || []);
+  };
+  assert.deepEqual(hexList(kotlin, 'accents'), web.CUSTOM_ACCENTS, 'próbki akcentu: web i APK muszą być identyczne');
+  assert.deepEqual(hexList(kotlin, 'backgrounds'), web.CUSTOM_BACKGROUNDS, 'próbki tła: web i APK muszą być identyczne');
+  const pairIds = (source) => (source.match(/CustomPair\("([a-z0-9-]+)"/g) || [])
+    .map((hit) => hit.slice('CustomPair("'.length, -1));
+  assert.deepEqual(pairIds(kotlin), web.CUSTOM_PAIRS.map((pair) => pair.style), 'gotowe pary: web i APK');
+
+  // Pary nie duplikują kolorów — biorą je z gotowych palet.
+  for (const pair of web.CUSTOM_PAIRS) {
+    const colors = web.customPairColors(pair.style);
+    const palette = web.PALETTES[pair.style];
+    assert.equal(colors.primary, `#${palette.accent.slice(2)}`, `para ${pair.style}: akcent z palety`);
+    assert.equal(colors.background, `#${palette.page.slice(2)}`, `para ${pair.style}: tło z palety`);
+  }
+
+  // Każda próbka na każdym tle musi po korekcie mieć kontrast ≥ 4,0 —
+  // inaczej plakietka notatki bywa nie do odczytania. Na ciemnych tłach
+  // wystarcza sam wybrany kolor (korekta nic nie zmienia).
+  for (const accent of web.CUSTOM_ACCENTS) {
+    for (const background of web.CUSTOM_BACKGROUNDS) {
+      const report = web.customAccentReport(accent, background);
+      assert.ok(report.contrast >= 3.99, `${accent} na ${background}: kontrast ${report.contrast.toFixed(2)}`);
+      if (report.dark) {
+        assert.equal(report.corrected, false, `${accent} na ${background}: ciemne tło nie wymaga korekty`);
+        assert.equal(report.applied, accent, `${accent} na ${background}: akcent zostaje bez zmian`);
+      }
+    }
+  }
+
   // Widżety: ten sam wybór trafia do odcisku, więc zmiana koloru je przerysowuje.
   const theme = readRepo('android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'widget', 'WidgetTheme.kt');
   assert.match(theme, /custom\.fingerprint\(\)/);

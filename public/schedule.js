@@ -339,6 +339,16 @@ const ScheduleViews = {
  */
 const WHATS_NEW = [
   {
+    version: 'v37',
+    title: 'Picker kolorów, który wreszcie tłumaczy, co robi',
+    items: [
+      'Opcje → Wygląd → „Gotowe motywy”: jedno dotknięcie daje gotową parę kolorów (Fiolet na czerni, Papier, Lawenda…)',
+      'Pod wierszem koloru są próbki: osiem akcentów i sześć teł — wybór „na oko” zamiast wpisywania kodu koloru',
+      'Zmiana koloru od razu włącza motyw „Własny” — wcześniej trzeba było zaznaczyć go osobno i kolor „nie działał”',
+      'Pod spodem podgląd kafelka w finalnej palecie i zdanie o kontraście: czy akcent został przyciemniony i do jakiej wartości',
+    ],
+  },
+  {
     version: 'v36',
     title: 'Motywy: własne dwa kolory i notatki na kafelkach jak szkło',
     items: [

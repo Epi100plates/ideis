@@ -59,22 +59,34 @@ nie trzeba przewijać listy do końca.
 Wybór jest zapamiętywany w przeglądarce (`localStorage`), a link niesie
 `?group=…` albo `?groups=…` i `?ay=…`, więc otwiera dokładnie ten sam plan.
 
-**Wygląd** (Opcje → Wygląd) to ten sam katalog co w APK — **20 stylów plus
-motyw „Własny”**:
+**Wygląd** (Opcje → Wygląd) to ten sam katalog co w APK — **21 stylów**:
 Liquid Glass 1–3, visionOS (w tym „Wydajny”), klasyczne (Apple, Auto, Jasny,
-Ciemny) i **Kolorowe**: Fiolet, Róż oraz Połączony (fiolet przechodzący w róż),
-każdy w wersji ciemnej i jasnej. Palety leżą w `public/styles.js` w tej samej
-postaci ARGB co `StyleCatalog.kt`, a `scripts/self-test.js` porównuje oba
-katalogi, żeby rozjazd wyszedł w testach. Zmiana działa od razu, bez
-przeładowania.
+Ciemny), **Kolorowe**: Fiolet, Róż oraz Połączony (fiolet przechodzący w róż),
+każdy w wersji ciemnej i jasnej, i na końcu **Własny**. Palety leżą
+w `public/styles.js` w tej samej postaci ARGB co `StyleCatalog.kt`,
+a `scripts/self-test.js` porównuje oba katalogi, żeby rozjazd wyszedł w testach.
+Zmiana działa od razu, bez przeładowania.
 
 **Motyw „Własny”** (ostatnia grupa na liście) to dwa kolory wybrane przez
 użytkownika: **kolor główny** (akcent) i **kolor tła**. Reszta palety — tekst,
 panele, krawędzie, gradient i plamy tła — jest z nich wyliczana, więc para
 zawsze daje spójny motyw: jasność motywu wynika z tła, a zbyt jasny akcent jest
 przyciemniany do czytelnego kontrastu (WCAG ≥ 4,0). Ten sam wybór obowiązuje
-w natywnej aplikacji **i w widżetach na pulpicie**. W webie kolory wybiera się
-natywnym wybierakiem, w APK — suwakami barwy, nasycenia i jasności.
+w natywnej aplikacji **i w widżetach na pulpicie**.
+
+Wybór kolorów idzie w trzech krokach, identycznie w webie i w APK:
+
+1. **Gotowe motywy** — sześć par (Fiolet na czerni, Róż w mroku, Fiolet z różem,
+   Ciepły grafit, Papier, Lawenda). Kolory par nie są osobną listą — biorą je
+   z palet katalogu (`customPairColors` w JS, `CustomPairs.colors` w Kotlinie).
+2. **Próbki** — osiem akcentów i sześć teł; dotknięcie od razu włącza motyw.
+3. **Dokładny kolor** — natywny wybierak w webie, kwadrat nasycenie/jasność
+   z paskiem barwy w APK.
+
+Pod spodem jest **podgląd w finalnej palecie** (kafel zajęć, plakietka notatki,
+przycisk) i zdanie o kontraście: „Akcent #22D3EE jest za jasny na to tło, więc
+aplikacja przyciemnia go do #137382”. Bez tego zdania picker zawsze wyglądał na
+zepsuty — wybierało się jeden kolor, a widziało inny.
 
 ![Motyw „Własny” w webie: fiolet na jasnym tle, plakietki notatek jak szkło](docs/web-motywwlasny.png)
 

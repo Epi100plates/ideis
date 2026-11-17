@@ -2,6 +2,7 @@ package pl.matiit.planzajec.ui.theme
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -159,6 +160,36 @@ object CustomTheme {
         }
         return accent
     }
+
+    /**
+     * Co aplikacja zrobi z wybranym akcentem — podpis pod podglądem motywu.
+     *
+     * Bez tego użytkownik wybiera jasny fiolet, a widzi ciemniejszy i uznaje
+     * picker za zepsuty; tutaj dostaje wprost: „przyciemniony do #6B4FDB,
+     * kontrast 5,1:1”.
+     */
+    data class AccentReport(
+        val picked: String,
+        val applied: String,
+        val contrast: Double,
+        val corrected: Boolean,
+        val dark: Boolean,
+    )
+
+    fun report(colors: CustomColors): AccentReport {
+        val normalized = CustomColors.normalize(colors.primary, colors.background)
+        val bg = rgb(normalized.background) ?: rgb(CustomColors.DEFAULT.background)!!
+        val picked = rgb(normalized.primary) ?: rgb(CustomColors.DEFAULT.primary)!!
+        val dark = relLuminance(bg) < DARK_LUMINANCE
+        val applied = readableAccent(picked, bg, dark)
+        return AccentReport(
+            picked = normalized.primary,
+            applied = hexOf(applied),
+            contrast = contrast(applied, bg),
+            corrected = hexOf(applied) != hexOf(picked),
+            dark = dark,
+        )
+    }
 }
 
 /**
@@ -182,6 +213,9 @@ internal fun rgb(hex: String): Rgb? {
     val value = clean.removePrefix("#").toInt(16)
     return Rgb((value shr 16) and 0xFF, (value shr 8) and 0xFF, value and 0xFF)
 }
+
+/** Kanały → `#RRGGBB` (wielkie litery). Locale.ROOT, bo w innych locale `%02X` bywa inny. */
+internal fun hexOf(c: Rgb): String = String.format(Locale.ROOT, "#%02X%02X%02X", c.r, c.g, c.b)
 
 internal fun rgbOf(argb: Int): Rgb = Rgb((argb shr 16) and 0xFF, (argb shr 8) and 0xFF, argb and 0xFF)
 

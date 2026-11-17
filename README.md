@@ -3,7 +3,7 @@
 [![Licencja](https://img.shields.io/badge/licencja-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933.svg?logo=node.js&logoColor=white)](package.json)
 [![Testy](https://img.shields.io/badge/testy-135%2F135-2ea44f.svg)](scripts/self-test.js)
-[![Android](https://img.shields.io/badge/Android-1.12%20(18)-3DDC84.svg?logo=android&logoColor=white)](android/version.properties)
+[![Android](https://img.shields.io/badge/Android-1.13%20(19)-3DDC84.svg?logo=android&logoColor=white)](android/version.properties)
 
 **Plan zajęć DSW w interfejsie natywnej aplikacji.** Przeglądarka (PWA) i telefon
 (APK) pokazują ten sam ekran — dzień, tydzień, miesiąc i semestr — a plan pobiera
@@ -42,6 +42,8 @@ bazy danych i bez ani jednej zależności z npm**.
 | ![Style](docs/web-style-kolorowe.png) | ![Notatka](docs/android-note-editor.png) |
 | **Motyw „Własny” (web)** | **Widżety z notatkami (APK)** |
 | ![Motyw własny](docs/web-motywwlasny.png) | ![Widżety](docs/android-widget-notes.png) |
+| **Picker kolorów (APK)** | **Podgląd i kontrast** |
+| ![Picker](docs/android-color-picker.png) | Gotowe pary, próbki akcentów i teł, kwadrat nasycenie/jasność oraz zdanie o tym, czy akcent został przyciemniony |
 
 ## Szybki start (serwer)
 
@@ -70,7 +72,7 @@ przebudowę kontenera. Wdrożenie na VPS: [`deploy/push.sh`](deploy/push.sh).
 Wydania na GitHubie robią się z tagu — [`release.yml`](.github/workflows/release.yml):
 
 ```bash
-git tag -a v1.12 -m "Wydanie 1.12 (18)" && git push origin v1.12
+git tag -a v1.13 -m "Wydanie 1.13 (19)" && git push origin v1.13
 ```
 
 Tag tworzy **Release** z APK pobranym z serwera (ten sam plik, który instalują
@@ -83,13 +85,13 @@ bo bez `keystore.properties` podpisałby się innym kluczem i zablokował aktual
 ```bash
 cd android
 ./gradlew assembleDebug        # APK debug
-./gradlew testDebugUnitTest    # 272 testy JVM
+./gradlew testDebugUnitTest    # 278 testów JVM
 ./gradlew lintDebug
 ```
 
 Domyślne API to `https://ideis.mati-it.pl`; można podmienić przy budowaniu
 (`-Pplanzajec.apiBase=http://10.0.2.2:3311`). Wersja aplikacji leży w
-[`android/version.properties`](android/version.properties) (1.12 / 18), a wydanie
+[`android/version.properties`](android/version.properties) (1.13 / 19), a wydanie
 publikuje [`scripts/publish-apk.ps1`](scripts/publish-apk.ps1).
 
 ## API
@@ -139,7 +141,7 @@ tests/       fixture'y HTML z harmonogramów
 | Bramka | Jak uruchomić | Stan |
 | --- | --- | --- |
 | Testy serwera i webu | `npm test` | 135 / 135 |
-| Testy Androida | `cd android && ./gradlew testDebugUnitTest` | 272 / 272 |
+| Testy Androida | `cd android && ./gradlew testDebugUnitTest` | 278 / 278 |
 | Lint Androida | `cd android && ./gradlew lintDebug` | bez błędów |
 
 `npm test` nie używa frameworka — to zwykły skrypt Node. Oprócz parsera i API
