@@ -1519,3 +1519,15 @@ gest na przewijanie strony i ruch nigdy nie docierał do nasłuchu.
 | Chromium, mysz (500 × 933) | „Co nowego” i Opcje zamykają się przeciągnięciem 220–240 px; `translateY(159px)` w trakcie (opór działa); drgnięcie 40 px **nie** zamyka; ciągnięcie w górę nie zmienia niczego; przy `scrollTop = 500` (treść 2326 px) gest w dół przewija listę, a arkusz zostaje na miejscu |
 | Chromium, dotyk (syntetyczne `TouchEvent`) | `translateY(148px)` w trakcie i zamknięcie po puszczeniu — ścieżka dotykowa działa niezależnie od myszy |
 | Strażnik kliknięcia | gest 80 px kończący się na wierszu „Liquid Glass 1” nie zmienił motywu (`custom` przed i po); zwykłe dotknięcie tego samego wiersza motyw zmienia |
+
+### Wydanie 1.13 (19) — 17.11.2026
+
+| Co | Wartość |
+| --- | --- |
+| APK na serwerze | `planzajec-ideis-1.13-19.apk`, 2 627 308 B, SHA-256 `51dbe9d8e4d50ff97db30e57b6a8f6010351567187db97377fdebaa37c795611`, `/api/app/latest` → kod 19 (`updateAvailable: true` dla klienta 18) |
+| podpis | ten sam co w 1.12 (`a35d055c…ed0ed26`) — aktualizacja wchodzi na zainstalowaną aplikację bez odinstalowania |
+| zawartość | w `classes.dex` są nowe napisy pickera („Gotowe motywy”, „Fiolet na czerni”, „Lawenda”), czyli wydanie naprawdę zawiera zmianę |
+| GitHub Release | [v1.13](https://github.com/Epi100plates/ideis/releases/tag/v1.13) z APK i `latest.json`; workflow run `44147605117` — oba joby `success` |
+| Packages | `ghcr.io/epi100plates/ideis` → tagi `1.13`, `latest` (ten sam digest `sha256:61285b72…`), `sha-d4e0291`; `1.12` zostaje na starym digescie |
+| emulator (release, R8) | plik **pobrany z Release** i zainstalowany: „Co nowego 1.13 (19)”, Opcje → Wygląd z gotowymi parami, próbkami i kwadratem SV, próbka `#22D3EE` → `akcent #22D3EE · kontrast 10.8:1`, „Aktualizacje: 1.13 (19) · najnowsza”, brak `FATAL EXCEPTION` w logcat |
+| WWW | bez zmian w tym wydaniu — produkcja na **v43** (arkusz zjeżdża gestem) |
