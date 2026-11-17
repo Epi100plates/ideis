@@ -48,6 +48,8 @@ object DayWidgetModelBuilder {
         nowMillis: Long,
         savedAtMillis: Long?,
         zone: ZoneId = ZoneId.systemDefault(),
+        /** Notatki z serwera — tak samo jak w widżecie tygodnia. */
+        notes: Map<String, String> = emptyMap(),
     ): DayWidgetModel {
         val days = ScheduleWindow.allDays(ScheduleMapper.toSlots(plan))
         val day = pickDay(days, today)
@@ -58,17 +60,7 @@ object DayWidgetModelBuilder {
             groupLabel = WidgetModelBuilder.groupLabel(plan, groupId),
             dayLabel = dayLabel(day, today),
             updatedLabel = updated,
-            rows = day?.classes?.map { slot ->
-                WidgetRow(
-                    start = Format.clock(slot.start),
-                    end = Format.clock(slot.end),
-                    subject = slot.subject,
-                    form = slot.form,
-                    room = slot.room,
-                    remote = slot.isRemote,
-                    minutes = slot.durationMinutes,
-                )
-            }.orEmpty(),
+            rows = day?.classes?.map { slot -> WidgetModelBuilder.rowOf(slot, notes) }.orEmpty(),
         )
     }
 }

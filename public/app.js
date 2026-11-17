@@ -22,7 +22,16 @@
 
   /* Katalog palet (STYLES / PALETTES / ALIASES) mieszka w /styles.js — ten sam
      plik czyta test zgodności z natywnym StyleCatalog.kt. Tu tylko wygoda. */
-  const { STYLES, STYLE_GROUPS, PALETTES, DEFAULT_STYLE, ALIASES } = window.PlanStyles;
+  const {
+    STYLES,
+    STYLE_GROUPS,
+    PALETTES,
+    DEFAULT_STYLE,
+    ALIASES,
+    normalizeCustom,
+    normalizeCustomHex,
+    customPalette,
+  } = window.PlanStyles;
 
   if (!STYLES || !PALETTES) {
     throw new Error('Brak /styles.js — katalog stylów nie został wczytany.');
@@ -43,6 +52,22 @@
     const normalized = normalizeStyle(id);
     if (normalized !== 'auto') return normalized;
     return systemDark() ? 'dark' : 'light';
+  }
+
+  /**
+   * Paleta dla identyfikatora stylu.
+   *
+   * „auto” rozwiązuje się wcześniej na `dark`/`light`, a „custom” nie ma wpisu
+   * w `PALETTES` — liczy się go z dwóch kolorów użytkownika (`customPalette`,
+   * te same reguły co `CustomTheme.kt`), więc zmiana koloru działa bez
+   * przebudowy katalogu.
+   */
+  function paletteOf(styleId) {
+    const resolved = resolveStyle(styleId);
+    if (resolved === 'custom') {
+      return customPalette(state.custom.primary, state.custom.background);
+    }
+    return PALETTES[resolved] || PALETTES[DEFAULT_STYLE];
   }
 
   // ------------------------------------------------------- 2. Kolory i tło
@@ -74,7 +99,7 @@
    */
   function applyStyle(id) {
     const resolved = resolveStyle(id);
-    const pal = PALETTES[resolved] || PALETTES[DEFAULT_STYLE];
+    const pal = paletteOf(id);
     const root = document.documentElement;
     const page = parseArgb(pal.page);
     const panel = parseArgb(pal.panel);
@@ -123,7 +148,9 @@
     root.style.backgroundColor = cssRgb(page);
     root.style.colorScheme = pal.dark ? 'dark' : 'light';
     const meta = document.getElementById('themeColorMeta');
-    if (meta) meta.setAttribute('content', pal.page.slice(2));
+    // `page` to ARGB, a `theme-color` przyjmuje `#RRGGBB` — bez `#` Chrome
+    // ignorował wartość i pasek adresu zostawał w kolorze z `index.html`.
+    if (meta) meta.setAttribute('content', `#${pal.page.slice(2)}`);
 
     paintAurora(pal);
   }
@@ -179,7 +206,7 @@
    * Niezależna od `VERSION` w public/sw.js — tamta numeruje cache powłoki,
    * więc podbija się także przy samych poprawkach bez nowości.
    */
-  const APP_VERSION = 'v35';
+  const APP_VERSION = 'v36';
 
   const $ = (id) => document.getElementById(id);
 
@@ -321,6 +348,12 @@
     error: null,
     needsGroup: false,
     styleId: DEFAULT_STYLE,
+    /**
+     * Dwa kolory motywu „Własny”: { primary, background } w zapisie `#RRGGBB`.
+     * Paletę liczy z nich `customPalette` (styles.js) — tak samo jak APK liczy
+     * ją z `CustomTheme.kt`, więc wybór wygląda identycznie na obu platformach.
+     */
+    custom: { primary: '#7C5CFF', background: '#0C0A18' },
     view: 'day',
     selectedDate: null,
     weekAnchor: null,
@@ -3062,11 +3095,106 @@
 
   /**
    * Kropka z kolorem akcentu palety — jak `StyleCatalog.palette(...).accent`
-   * w wierszu stylu w APK. `auto` bierze paletę systemową, tak jak podgląd.
+   * w wierszu stylu w APK. `auto` bierze paletę systemową, `custom` — wyliczoną
+   * z kolorów użytkownika, tak jak podgląd.
    */
   function styleAccentOf(styleId) {
-    const pal = PALETTES[resolveStyle(styleId)] || PALETTES[DEFAULT_STYLE];
+    const pal = paletteOf(styleId);
     return pal ? cssRgb(parseArgb(pal.accent)) : 'transparent';
+  }
+
+  /**
+   * Edytor motywu „Własny”: dwa kolory, każdy natywnym wybierakiem (na telefonie
+   * otwiera systemowy wybór koloru), z podglądem i wartością hex.
+   *
+   * Kolor zmienia motyw **od razu** (`input`), a zapis i przemalowanie listy
+   * stylów idą po zamknięciu wybieraka (`change`) — inaczej lista traciłaby
+   * zaznaczenie przy każdym ruchu palca.
+   */
+  function settingsCustomHtml() {
+    const colors = normalizeCustom(state.custom.primary, state.custom.background);
+    const active = normalizeStyle(state.styleId) === 'custom';
+    const row = (id, labelId, title, sub, value) => `<label class="settings-color" for="${id}">
+      <span class="settings-color-text">
+        <span class="settings-color-title">${esc(title)}</span>
+        <span class="settings-color-sub">${esc(sub)}</span>
+      </span>
+      <span class="settings-color-hex" id="${labelId}">${esc(value)}</span>
+      <span class="settings-color-swatch" aria-hidden="true" style="background:${cssRgb(parseArgb(`FF${value.slice(1)}`))}"></span>
+      <input type="color" id="${id}" class="settings-color-input" value="${esc(value)}"
+             aria-label="${esc(title)} motywu">
+    </label>`;
+    return `<p class="settings-group-head">Własny motyw</p>
+      ${settingsCard(`${row('customPrimary', 'customPrimaryHex', 'Kolor główny', 'akcent: przyciski, plakietki notatek', colors.primary)}
+        ${settingsDivider()}
+        ${row('customBackground', 'customBackgroundHex', 'Kolor tła', 'o jego jasności decyduje cały motyw', colors.background)}`)}
+      <p class="settings-note">Motyw działa po wybraniu „Własny” z listy powyżej${active ? '' : ' — teraz wybrany jest inny styl'}.
+        Jasność motywu wynika z koloru tła, a jasny akcent jest przyciemniany do czytelnego kontrastu.
+        Widżety na pulpicie biorą te same dwa kolory.</p>`;
+  }
+
+  function settingsLookHtml() {
+    const rows = STYLE_GROUPS.map((group) => {
+      const entries = STYLES.filter((style) => style.group === group.key);
+      if (!entries.length) return '';
+      return `<p class="settings-group-head">${esc(group.label)}</p>`
+        + settingsCard(entries.map((style, index) => {
+          const selected = normalizeStyle(state.styleId) === style.id;
+          return `${index > 0 ? settingsDivider() : ''}<button type="button" class="settings-style"
+              data-settings-style="${esc(style.id)}" role="radio" aria-checked="${selected ? 'true' : 'false'}">
+            <span class="settings-style-text">
+              <span class="settings-style-title${selected ? ' is-selected' : ''}">${esc(style.label)}</span>
+              <span class="settings-style-sub">${esc(style.hint)}</span>
+            </span>
+            <span class="settings-swatch" style="background:${styleAccentOf(style.id)}" aria-hidden="true"></span>
+            <span class="radio-mark" aria-hidden="true"></span>
+          </button>`;
+        }).join(''));
+    }).join('');
+    return `${settingsPageHeader({
+    title: 'Wygląd',
+    subtitle: 'Ten sam wybór co w natywnej aplikacji — zmiana działa od razu.',
+    back: true,
+  })}${rows}${settingsCustomHtml()}`;
+  }
+
+  /**
+   * Nasłuch wybieraków koloru. Arkusz Opcji rysuje się od nowa po każdym
+   * wejściu na stronę, więc słuchacze podpinamy przy każdym renderze —
+   * delegacja zdarzeń nie obsłuży `input` z `type="color"`.
+   */
+  function bindCustomColors(root) {
+    if (!root) return;
+    const fields = [
+      { id: 'customPrimary', key: 'primary', label: 'customPrimaryHex' },
+      { id: 'customBackground', key: 'background', label: 'customBackgroundHex' },
+    ];
+    fields.forEach(({ id, key, label }) => {
+      const input = root.querySelector(`#${id}`);
+      if (!input) return;
+      const apply = () => {
+        const hex = normalizeCustomHex(input.value);
+        if (!hex) return;
+        state.custom = normalizeCustom(
+          key === 'primary' ? hex : state.custom.primary,
+          key === 'background' ? hex : state.custom.background,
+        );
+        const text = root.querySelector(`#${label}`);
+        if (text) text.textContent = state.custom[key];
+        // Próbka w wierszu „Własny” musi pokazać nowy akcent od razu.
+        const swatch = root.querySelector('[data-settings-style="custom"] .settings-swatch');
+        if (swatch) swatch.style.background = cssRgb(parseArgb(paletteOf('custom').accent));
+        applyStyle(state.styleId);
+      };
+      input.addEventListener('input', apply);
+      input.addEventListener('change', () => {
+        apply();
+        writePrefs({
+          customPrimary: state.custom.primary,
+          customBackground: state.custom.background,
+        });
+      });
+    });
   }
 
   function settingsRootHtml(now) {
@@ -3184,31 +3312,6 @@
     }).join(settingsDivider());
     return `<p class="settings-group-head">Grupy w planie (${state.planGroups.length})</p>
       ${settingsCard(rows || '<p class="materials-hint">Plan nie ma jeszcze grup.</p>')}`;
-  }
-
-  function settingsLookHtml() {
-    const rows = STYLE_GROUPS.map((group) => {
-      const entries = STYLES.filter((style) => style.group === group.key);
-      if (!entries.length) return '';
-      return `<p class="settings-group-head">${esc(group.label)}</p>`
-        + settingsCard(entries.map((style, index) => {
-          const selected = normalizeStyle(state.styleId) === style.id;
-          return `${index > 0 ? settingsDivider() : ''}<button type="button" class="settings-style"
-              data-settings-style="${esc(style.id)}" role="radio" aria-checked="${selected ? 'true' : 'false'}">
-            <span class="settings-style-text">
-              <span class="settings-style-title${selected ? ' is-selected' : ''}">${esc(style.label)}</span>
-              <span class="settings-style-sub">${esc(style.hint)}</span>
-            </span>
-            <span class="settings-swatch" style="background:${styleAccentOf(style.id)}" aria-hidden="true"></span>
-            <span class="radio-mark" aria-hidden="true"></span>
-          </button>`;
-        }).join(''));
-    }).join('');
-    return `${settingsPageHeader({
-    title: 'Wygląd',
-    subtitle: 'Ten sam wybór co w natywnej aplikacji — zmiana działa od razu.',
-    back: true,
-  })}${rows}`;
   }
 
   function settingsUpdatesHtml(now) {
@@ -3648,6 +3751,7 @@
     const animate = direction === 'forward' || direction === 'back';
     body.innerHTML = `<div class="settings-page${animate ? (direction === 'back' ? ' is-back' : '') : ' is-still'}">${pages[page]}</div>`;
     state.sheetKind = 'settings';
+    if (page === 'look') bindCustomColors(body);
     if (page === 'group') {
       bindSettingsManual();
       // Ta strona rysuje ten sam ekran wyboru co powitanie — lista roczników
@@ -5295,6 +5399,9 @@
         ? { styleEpoch: STYLE_EPOCH }
         : { styleEpoch: STYLE_EPOCH, styleId: state.styleId, theme: state.styleId, themePicked: false });
     }
+    // Motyw „Własny”: dwa kolory użytkownika. Czytamy je **przed** `applyStyle`,
+    // bo paleta „custom” liczy się dopiero z nich.
+    state.custom = normalizeCustom(prefs.customPrimary, prefs.customBackground);
     // Aplikacja otwiera się na dniu — zawsze. Wybór kafelka jest stanem sesji,
     // nie ustawieniem: zapamiętany „Semestr” wracał po restarcie i plan startował
     // na widoku, którego nikt nie chciał (APK 1.7). `?view=` zostaje, bo to

@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import pl.matiit.planzajec.data.PlanGraph
+import pl.matiit.planzajec.ui.theme.CustomColors
 import pl.matiit.planzajec.ui.theme.StyleCatalog
 
 /**
@@ -46,6 +47,9 @@ object WidgetUpdater {
         val group = target.groupId
         val stored = withContext(Dispatchers.IO) { repository.cachedPlan(target) }
         val settings = PlanGraph.settings(app)
+        // Notatki bierzemy z kopii na dysku: widżet rysuje się także bez sieci,
+        // a aplikacja odświeża tę kopię przy każdym wejściu i po każdym zapisie.
+        val notes = withContext(Dispatchers.IO) { PlanGraph.notes(app).cached() }
         val today = LocalDate.now()
         val now = System.currentTimeMillis()
         val zone = ZoneId.systemDefault()
@@ -57,6 +61,7 @@ object WidgetUpdater {
             nowMillis = now,
             savedAtMillis = stored?.savedAtMillis,
             zone = zone,
+            notes = notes,
         )
         val dayModel = DayWidgetModelBuilder.build(
             plan = stored?.plan,
@@ -65,8 +70,10 @@ object WidgetUpdater {
             nowMillis = now,
             savedAtMillis = stored?.savedAtMillis,
             zone = zone,
+            notes = notes,
         )
         val styleId = settings.styleId ?: StyleCatalog.DEFAULT_STYLE
+        val custom = CustomColors.normalize(settings.customPrimary, settings.customBackground)
         val night = WidgetNight.isNight(app)
 
         updateInstances(
@@ -74,8 +81,10 @@ object WidgetUpdater {
             receiver = ScheduleWidgetReceiver::class.java,
             widget = ScheduleWidget(),
             kind = WidgetPrefs.KIND_WEEK,
-            content = WidgetTheme.contentKey(today, styleId, night, weekModel.fingerprint()),
+            content = WidgetTheme.contentKey(today, styleId, night, weekModel.fingerprint(), custom),
             styleId = styleId,
+            custom = custom,
+            notes = notes,
             night = night,
             today = today,
             force = force,
@@ -85,8 +94,10 @@ object WidgetUpdater {
             receiver = DayScheduleWidgetReceiver::class.java,
             widget = DayScheduleWidget(),
             kind = WidgetPrefs.KIND_DAY,
-            content = WidgetTheme.contentKey(today, styleId, night, dayModel.fingerprint()),
+            content = WidgetTheme.contentKey(today, styleId, night, dayModel.fingerprint(), custom),
             styleId = styleId,
+            custom = custom,
+            notes = notes,
             night = night,
             today = today,
             force = force,
@@ -106,6 +117,8 @@ object WidgetUpdater {
         kind: String,
         content: String,
         styleId: String,
+        custom: CustomColors,
+        notes: Map<String, String>,
         night: Boolean,
         today: LocalDate,
         force: Boolean,
@@ -124,9 +137,10 @@ object WidgetUpdater {
             val fingerprint = "${look.id}|$content"
             if (!force && WidgetPrefs.fingerprint(app, id, kind) == fingerprint) return@forEach
 
-            // Motyw, tonacja i dzień w stanie Glance: zmiana unieważnia kompozycję,
-            // więc widżet przemalowuje się i przelicza plan bez nowej sesji.
-            runCatching { writeWidgetContext(app, id, styleId, night, today) }
+            // Motyw, tonacja, dzień, kolory motywu własnego i notatki w stanie
+            // Glance: zmiana unieważnia kompozycję, więc widżet przemalowuje się
+            // i przelicza plan bez nowej sesji.
+            runCatching { writeWidgetContext(app, id, styleId, night, today, custom, notes) }
             runCatching { widget.update(app, manager.getGlanceIdBy(id)) }
                 .onSuccess { WidgetPrefs.setFingerprint(app, id, kind, fingerprint) }
                 .onFailure {

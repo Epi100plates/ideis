@@ -8,6 +8,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import pl.matiit.planzajec.Fixtures
+import pl.matiit.planzajec.domain.ScheduleMapper
 
 class WidgetModelTest {
 
@@ -96,6 +97,40 @@ class WidgetModelTest {
         val later = WidgetModelBuilder.build(plan, "21188", today.plusDays(3), now, savedAt, zone)
 
         assertTrue(first.fingerprint() != later.fingerprint())
+    }
+
+    /**
+     * Notatka z kafelka („Kolos”) musi dojść do widżetu **i** do odcisku treści:
+     * bez tego widżet nie przerysowałby się po dodaniu notatki w aplikacji.
+     */
+    @Test
+    fun `notatka trafia do wiersza i do odcisku`() {
+        val slot = ScheduleMapper.toSlots(plan).first { it.subject == "Analiza matematyczna" }
+        val without = WidgetModelBuilder.build(plan, "21188", today, now, savedAt, zone)
+        val withNote = WidgetModelBuilder.build(
+            plan, "21188", today, now, savedAt, zone,
+            notes = mapOf(slot.id to "Kolos"),
+        )
+        val blank = WidgetModelBuilder.build(
+            plan, "21188", today, now, savedAt, zone,
+            notes = mapOf(slot.id to "   "),
+        )
+
+        assertNull(without.days.first().rows.first().note)
+        assertEquals("Kolos", withNote.days.first().rows.first().note)
+        assertTrue("notatka musi zmienić odcisk", withNote.fingerprint() != without.fingerprint())
+        assertNull("pusty tekst to brak plakietki", blank.days.first().rows.first().note)
+    }
+
+    @Test
+    fun `widzet dnia pokazuje notatki tak samo jak tydzien`() {
+        val slot = ScheduleMapper.toSlots(plan).first { it.subject == "Analiza matematyczna" }
+        val model = DayWidgetModelBuilder.build(
+            plan, "21188", today, now, savedAt, zone,
+            notes = mapOf(slot.id to "Egzamin"),
+        )
+
+        assertEquals("Egzamin", model.rows.first { it.subject == "Analiza matematyczna" }.note)
     }
 }
 

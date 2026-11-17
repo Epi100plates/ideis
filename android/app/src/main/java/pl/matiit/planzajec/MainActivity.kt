@@ -46,13 +46,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
-            val palette = StyleCatalog.palette(state.styleId, isSystemInDarkTheme())
+            val palette = StyleCatalog.palette(
+                id = state.styleId,
+                systemDark = isSystemInDarkTheme(),
+                custom = state.customTheme,
+            )
 
             // Paski systemowe muszą pasować do wybranego stylu (jasne/ciemne ikony),
             // niezależnie od tego, czy system jest w trybie nocnym.
             SystemBarsEffect(window, palette)
 
-            PlanTheme(styleId = state.styleId) {
+            PlanTheme(styleId = state.styleId, customColors = state.customTheme) {
                 ScheduleApp(viewModel, updates)
             }
         }

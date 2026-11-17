@@ -59,13 +59,24 @@ nie trzeba przewijać listy do końca.
 Wybór jest zapamiętywany w przeglądarce (`localStorage`), a link niesie
 `?group=…` albo `?groups=…` i `?ay=…`, więc otwiera dokładnie ten sam plan.
 
-**Wygląd** (Opcje → Wygląd) to ten sam katalog co w APK — **20 stylów**:
+**Wygląd** (Opcje → Wygląd) to ten sam katalog co w APK — **20 stylów plus
+motyw „Własny”**:
 Liquid Glass 1–3, visionOS (w tym „Wydajny”), klasyczne (Apple, Auto, Jasny,
 Ciemny) i **Kolorowe**: Fiolet, Róż oraz Połączony (fiolet przechodzący w róż),
 każdy w wersji ciemnej i jasnej. Palety leżą w `public/styles.js` w tej samej
 postaci ARGB co `StyleCatalog.kt`, a `scripts/self-test.js` porównuje oba
 katalogi, żeby rozjazd wyszedł w testach. Zmiana działa od razu, bez
 przeładowania.
+
+**Motyw „Własny”** (ostatnia grupa na liście) to dwa kolory wybrane przez
+użytkownika: **kolor główny** (akcent) i **kolor tła**. Reszta palety — tekst,
+panele, krawędzie, gradient i plamy tła — jest z nich wyliczana, więc para
+zawsze daje spójny motyw: jasność motywu wynika z tła, a zbyt jasny akcent jest
+przyciemniany do czytelnego kontrastu (WCAG ≥ 4,0). Ten sam wybór obowiązuje
+w natywnej aplikacji **i w widżetach na pulpicie**. W webie kolory wybiera się
+natywnym wybierakiem, w APK — suwakami barwy, nasycenia i jasności.
+
+![Motyw „Własny” w webie: fiolet na jasnym tle, plakietki notatek jak szkło](docs/web-motywwlasny.png)
 
 ![Opcje → Wygląd: grupa „Kolorowe” z fioletem, różem i połączonym](docs/web-style-kolorowe.png)
 
@@ -169,8 +180,9 @@ motywy (Fiolet, Róż, Połączony).
 ### Notatki na kafelkach zajęć
 
 Do każdych zajęć można dopisać krótką notatkę („Kolos”, „Egzamin”, własny tekst
-do 15 znaków). Notatka stoi na kafelku jako plakietka w kolorze wybranego
-motywu: pełna wysokość karty, **ścięty ukośny lewy brzeg** (chorągiewka przy
+do 15 znaków). Notatka stoi na kafelku jako **przezroczysta** plakietka w kolorze
+wybranego motywu (delikatne podbarwienie akcentem i cienka krawędź zamiast litego
+prostokąta): pełna wysokość karty, **ścięty ukośny lewy brzeg** (chorągiewka przy
 prawej krawędzi), maksymalnie **35% szerokości** kafelka, a rozmiar tekstu
 dopasowuje się sam (20 → 9 px w webie, 22 → 9 sp w APK) — nazwa przedmiotu
 nigdy nie chowa się pod plakietką.
@@ -178,11 +190,15 @@ nigdy nie chowa się pod plakietką.
 Notatka jest **wspólna**: przypisana do konkretnych zajęć (data i godzina),
 zapisana na serwerze, więc dopisana w APK jest od razu w webie i odwrotnie —
 i każdy może ją zmienić albo usunąć. Dodaje się ją w szczegółach zajęć:
-dotknij kafelka, wybierz chip albo wpisz własny tekst.
+dotknij kafelka, wybierz chip albo wpisz własny tekst. **Widżety** (dzień
+i tydzień) pokazują ją na wierszu zajęć jako pigułkę w kolorze motywu; czyta się
+ją z kopii na dysku, więc działa też bez internetu i po restarcie telefonu.
 
 ![Plakietki notatek na kafelkach (motyw ciemny)](docs/web-note-dark.png)
 
 ![Edytor notatki w szczegółach zajęć — APK](docs/android-note-editor.png)
+
+![Widżety w motywie własnym: plakietka „Kolos” przy zajęciach](docs/android-widget-notes.png)
 
 
 Aplikacja nie jest w żadnym sklepie, więc sama pyta serwer o nową wersję:

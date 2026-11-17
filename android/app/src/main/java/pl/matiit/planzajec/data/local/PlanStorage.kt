@@ -35,6 +35,14 @@ interface PlanSettings {
 
     var groupsFetchedAt: Long
     var styleId: String?
+
+    /**
+     * Dwa kolory motywu „Własny” (`#RRGGBB`). Trzymamy je osobno od `styleId`,
+     * bo wybór motywu i jego barwy zmieniają się niezależnie — a widżet musi
+     * umieć narysować paletę bez uruchamiania aplikacji.
+     */
+    var customPrimary: String?
+    var customBackground: String?
     var hasChosenGroup: Boolean
 
     /** Ostatnia wersja, dla której pokazano ekran „Co nowego” (0 = jeszcze nigdy). */

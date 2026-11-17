@@ -26,9 +26,13 @@ val LocalStylePalette = staticCompositionLocalOf { StyleCatalog.palette("lg2-dar
 fun PlanTheme(
     styleId: String?,
     systemDark: Boolean = isSystemInDarkTheme(),
+    /** Dwa kolory motywu „Własny” — paletę liczy z nich `CustomTheme`. */
+    customColors: CustomColors = CustomColors.DEFAULT,
     content: @Composable () -> Unit,
 ) {
-    val palette = remember(styleId, systemDark) { StyleCatalog.palette(styleId, systemDark) }
+    val palette = remember(styleId, systemDark, customColors) {
+        StyleCatalog.palette(styleId, systemDark, customColors)
+    }
     val colorScheme = remember(palette) { colorSchemeFor(palette) }
 
     CompositionLocalProvider(LocalStylePalette provides palette) {

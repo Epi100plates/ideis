@@ -1,11 +1,13 @@
 package pl.matiit.planzajec.widget
 
 import java.time.LocalDate
+import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import pl.matiit.planzajec.ui.theme.CustomColors
 import pl.matiit.planzajec.ui.theme.StyleCatalog
 
 /**
@@ -69,6 +71,39 @@ class WidgetThemeTest {
         assertEquals(
             WidgetTheme.contentKey(today, StyleCatalog.DEFAULT_STYLE, night = true, modelFingerprint = "p"),
             WidgetTheme.contentKey(today, null, night = true, modelFingerprint = "p"),
+        )
+    }
+
+    /**
+     * Motyw „Własny” w widżecie: paleta liczona z dwóch kolorów użytkownika,
+     * a zmiana samej barwy musi unieważnić odcisk (inaczej widżet zostałby
+     * w starych kolorach, bo `styleId` się nie zmienia).
+     */
+    @Test
+    fun `widzet liczy palete motywu wlasnego z kolorow uzytkownika`() {
+        val violet = WidgetTheme.palette(
+            "custom",
+            night = false,
+            custom = CustomColors("#7C5CFF", "#0C0A18"),
+        )
+        val emerald = WidgetTheme.palette(
+            "custom",
+            night = false,
+            custom = CustomColors("#10B981", "#04120C"),
+        )
+
+        assertEquals("custom", violet.id)
+        assertTrue("ciemne tło to ciemny motyw", violet.isDark)
+        assertEquals(Color(0xFF0C0A18), violet.page)
+        assertNotEquals(violet.accent, emerald.accent)
+        assertNotEquals(violet.page, emerald.page)
+        assertEquals(
+            WidgetTheme.contentKey(today, "custom", night = false, modelFingerprint = "p", custom = CustomColors("#7C5CFF", "#0C0A18")),
+            WidgetTheme.contentKey(today, "custom", night = false, modelFingerprint = "p"),
+        )
+        assertNotEquals(
+            WidgetTheme.contentKey(today, "custom", night = false, modelFingerprint = "p", custom = CustomColors("#7C5CFF", "#0C0A18")),
+            WidgetTheme.contentKey(today, "custom", night = false, modelFingerprint = "p", custom = CustomColors("#10B981", "#04120C")),
         )
     }
 }

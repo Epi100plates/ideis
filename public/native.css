@@ -799,11 +799,16 @@ a.text-btn { text-decoration: none; display: inline-flex; align-items: center; j
 }
 .class-card:active { filter: brightness(1.15); }
 
-/* Plakietka notatki („Kolos”, „Egzamin”) — jak w projekcie z APK 1.10.
-   Kolor bierze się z motywu (`--accent` na `--accent-on`), więc notatka jest
-   widoczna w każdym z 20 motywów, jasnym i ciemnym. Plakietka jest **częścią
-   układu** karty: nazwa przedmiotu zwęża się tylko o tyle, ile naprawdę zajmuje
-   tekst, a szerokość jest ograniczona do 35% karty.
+/* Plakietka notatki („Kolos”, „Egzamin”) — „szklana” od APK 1.12.
+   Wcześniej była **litym** prostokątem w kolorze akcentu z tekstem `--accent-on`,
+   więc wyglądała jak przyklejona naklejka: mocny, obcy kolor na kafelku.
+   Teraz to przezroczyste podbarwienie akcentem (30% → 10% wzdłuż skosu) z cienką
+   krawędzią w tym samym kolorze i tekstem w kolorze akcentu — plakietka czyta się
+   jak część karty, a nie warstwa nad nią. Krycie jest stałe dla wszystkich palet:
+   na jasnych motywach mocniejszy akcent zabrałby kontrast akcentowemu tekstowi.
+   Kolory biorą się z motywu (`--accent`), więc działa też motyw „Własny”.
+   Plakietka jest **częścią układu** karty: nazwa przedmiotu zwęża się tylko o tyle,
+   ile naprawdę zajmuje tekst, a szerokość jest ograniczona do 35% karty.
 
    Lewy brzeg jest **ścięty ukośnie** (chorągiewka przy prawej krawędzi), a nie
    zaokrąglony. Kąt zależy od wysokości karty, a CSS nie zna wysokości
@@ -824,8 +829,12 @@ a.text-btn { text-decoration: none; display: inline-flex; align-items: center; j
   margin: -12px 0 -12px 8px;
   padding: 0 10px 0 var(--note-pad);
   clip-path: polygon(100% 0, 100% 100%, 0 100%, var(--note-slant) 0);
-  background: var(--accent);
-  color: var(--accent-on);
+  background: linear-gradient(168deg,
+    rgba(var(--accent-rgb), 0.30) 0%,
+    rgba(var(--accent-rgb), 0.10) 100%);
+  /* Cienka krawędź wzdłuż skosu i górnej krawędzi — obrys „szkła”. */
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.45);
+  color: var(--accent);
   overflow: hidden;
 }
 
@@ -1721,6 +1730,62 @@ a.text-btn { text-decoration: none; display: inline-flex; align-items: center; j
   font-weight: 600;
   letter-spacing: .4px;
   color: var(--text-soft);
+}
+
+/* Wybór dwóch kolorów motywu „Własny” (Opcje → Wygląd).
+   Cały wiersz jest etykietą natywnego `input type="color"`, więc dotknięcie
+   otwiera systemowy wybierak — także na telefonie. Sam input jest niewidoczny
+   (ale nadal fokusowalny i opisany `aria-label`), a kolor pokazuje próbka. */
+.settings-color {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: inherit;
+}
+.settings-color:active { background: rgba(var(--accent-rgb), 0.06); }
+.settings-color:focus-within { outline: 2px solid rgba(var(--accent-rgb), 0.85); outline-offset: 2px; }
+.settings-color-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.settings-color-title {
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: .25px;
+  color: var(--text);
+}
+.settings-color-sub {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+.settings-color-hex {
+  flex: 0 0 auto;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+.settings-color-swatch {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--outline);
+}
+.settings-color-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
 .settings-foot,

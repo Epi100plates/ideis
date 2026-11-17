@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import pl.matiit.planzajec.MainActivity
 import pl.matiit.planzajec.R
 import pl.matiit.planzajec.data.PlanGraph
+import pl.matiit.planzajec.ui.theme.CustomColors
 
 /**
  * Widżet „plan na najbliższy tydzień”.
@@ -44,7 +45,12 @@ class ScheduleWidget : GlanceAppWidget() {
         val target = repository.currentTarget()
         val group = target.groupId
         val stored = withContext(Dispatchers.IO) { repository.cachedPlan(target) }
-        val styleId = PlanGraph.settings(context).styleId
+        val settings = PlanGraph.settings(context)
+        val styleId = settings.styleId
+        // Wartości zapasowe: stan Glance jest uzupełniany przy każdej aktualizacji,
+        // ale tuż po dodaniu widżetu może go jeszcze nie być.
+        val custom = CustomColors.normalize(settings.customPrimary, settings.customBackground)
+        val notes = withContext(Dispatchers.IO) { PlanGraph.notes(context).cached() }
         val systemNight = WidgetNight.isNight(context)
 
         provideContent {
@@ -57,13 +63,18 @@ class ScheduleWidget : GlanceAppWidget() {
                 nowMillis = System.currentTimeMillis(),
                 savedAtMillis = stored?.savedAtMillis,
                 zone = ZoneId.systemDefault(),
+                notes = state.widgetNotes(notes),
             )
             WidgetContent(
                 model = model,
                 look = state.widgetLook(),
                 // Styl ze stanu: odczyt z pamięci raz w `provideGlance` zostawał
                 // stary po zmianie motywu (sesja kompozycji Glance żyje dłużej).
-                colors = WidgetTheme.colors(state.widgetStyle() ?: styleId, night),
+                colors = WidgetTheme.colors(
+                    styleId = state.widgetStyle() ?: styleId,
+                    night = night,
+                    custom = state.widgetCustomColors(custom),
+                ),
             )
         }
     }
@@ -75,7 +86,12 @@ class ScheduleWidget : GlanceAppWidget() {
      */
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
         val night = WidgetNight.isNight(context)
-        val colors = WidgetTheme.colors(PlanGraph.settings(context).styleId, night)
+        val settings = PlanGraph.settings(context)
+        val colors = WidgetTheme.colors(
+            styleId = settings.styleId,
+            night = night,
+            custom = CustomColors.normalize(settings.customPrimary, settings.customBackground),
+        )
         provideContent {
             WidgetContent(
                 model = WidgetPreview.weekModel(),

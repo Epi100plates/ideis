@@ -353,6 +353,8 @@ class PlanRepositoryTest {
         override var selection: PlanSelection = PlanSelection()
         override var groupsFetchedAt: Long = 0L
         override var styleId: String? = null
+        override var customPrimary: String? = null
+        override var customBackground: String? = null
         override var hasChosenGroup: Boolean = false
         override var whatsNewSeenVersion: Int = 0
         private val checked = mutableMapOf<String, Long>()

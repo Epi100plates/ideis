@@ -73,6 +73,18 @@ class SharedPrefsSettings(context: Context) : PlanSettings, UpdateSettings {
             prefs.edit { putString(KEY_STYLE_ID, value) }
         }
 
+    override var customPrimary: String?
+        get() = prefs.getString(KEY_CUSTOM_PRIMARY, null)
+        set(value) {
+            prefs.edit { putString(KEY_CUSTOM_PRIMARY, value) }
+        }
+
+    override var customBackground: String?
+        get() = prefs.getString(KEY_CUSTOM_BACKGROUND, null)
+        set(value) {
+            prefs.edit { putString(KEY_CUSTOM_BACKGROUND, value) }
+        }
+
     override var hasChosenGroup: Boolean
         get() = prefs.getBoolean(KEY_HAS_CHOSEN_GROUP, false)
         set(value) {
@@ -146,6 +158,8 @@ class SharedPrefsSettings(context: Context) : PlanSettings, UpdateSettings {
         const val KEY_SEL_SEM = "selection-sem"
         const val KEY_GROUPS_FETCHED_AT = "groups-fetched-at"
         const val KEY_STYLE_ID = "style-id"
+        const val KEY_CUSTOM_PRIMARY = "custom-primary"
+        const val KEY_CUSTOM_BACKGROUND = "custom-background"
         const val KEY_HAS_CHOSEN_GROUP = "has-chosen-group"
         const val KEY_WHATS_NEW_SEEN = "whats-new-seen-version"
         const val KEY_CHECKED_PREFIX = "checked-at:"

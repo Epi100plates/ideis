@@ -45,6 +45,7 @@ import pl.matiit.planzajec.domain.toSelection
 import pl.matiit.planzajec.ui.settings.FeedbackKind
 import pl.matiit.planzajec.ui.selection.SiteLabels
 import pl.matiit.planzajec.ui.selection.WizardContext
+import pl.matiit.planzajec.ui.theme.CustomColors
 import pl.matiit.planzajec.ui.theme.StyleCatalog
 import pl.matiit.planzajec.widget.WidgetUpdater
 
@@ -100,6 +101,11 @@ data class PlanUiState(
     val offline: Boolean = false,
     val error: String? = null,
     val styleId: String = StyleCatalog.DEFAULT_STYLE,
+    /**
+     * Dwa kolory motywu „Własny” (akcent i tło). Paletę liczy z nich
+     * `CustomTheme`/`StyleCatalog.palette` — ten sam wybór obowiązuje w widżetach.
+     */
+    val customTheme: CustomColors = CustomColors.DEFAULT,
     val viewMode: ScheduleViewMode = ScheduleViewMode.default,
     val needsGroupSelection: Boolean = false,
     /** Identyfikatory zajęć, do których są materiały — do ikony spinacza. */
@@ -290,6 +296,7 @@ class PlanViewModel(
             appliedSelection = repository.currentSelection(),
             target = repository.currentTarget(),
             styleId = StyleCatalog.normalize(repository.currentStyle()),
+            customTheme = repository.currentCustomTheme(),
             // Zawsze „Dzień”: wybór kafelka jest stanem sesji, nie ustawieniem.
             // Wcześniej zapamiętany tryb (np. Semestr) wracał po restarcie
             // i aplikacja otwierała się na widoku, którego nikt nie chciał.
@@ -452,6 +459,9 @@ class PlanViewModel(
             if (saved.isBlank()) next.remove(classId) else next[classId] = saved
             current.copy(notes = next)
         }
+        // Widżet pokazuje notatkę na wierszu zajęć — musi się przerysować.
+        // `onPlanChanged` wystarczy: odcisk modelu zmienia się razem z notatką.
+        onPlanChanged()
         return null
     }
 
@@ -846,6 +856,19 @@ class PlanViewModel(
         if (normalized == _state.value.styleId) return
         repository.selectStyle(normalized)
         _state.update { it.copy(styleId = normalized) }
+        onStyleChanged()
+    }
+
+    /**
+     * Zmiana barw motywu „Własny”. Zapis trwały od razu (kolor wybierany
+     * suwakiem zmienia się często — nie ma „zatwierdź”), a widżet przerysowuje
+     * się **wymuszonym** odświeżeniem, bo `styleId` się nie zmienia.
+     */
+    fun selectCustomTheme(primary: String, background: String) {
+        val colors = CustomColors.normalize(primary, background)
+        if (colors == _state.value.customTheme) return
+        repository.selectCustomTheme(colors)
+        _state.update { it.copy(customTheme = colors) }
         onStyleChanged()
     }
 

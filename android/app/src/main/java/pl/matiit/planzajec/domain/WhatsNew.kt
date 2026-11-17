@@ -18,6 +18,16 @@ object WhatsNew {
     /** Od najnowszego wydania. Kolejne wpisy dopisujemy przy publikacji. */
     val releases: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 18,
+            versionName = "1.12",
+            items = listOf(
+                "Plakietka notatki na kafelku jest przezroczysta: delikatne podbarwienie akcentem i cienka krawędź zamiast litego prostokąta",
+                "Nowy motyw „Własny” w Opcjach → Wygląd: wybierasz kolor główny i kolor tła, a resztę motywu dobiera aplikacja",
+                "Jasność motywu wynika z koloru tła, a jasny akcent jest przyciemniany do czytelnego kontrastu",
+                "Widżety pokazują notatki z kafelków („Kolos”, „Egzamin”) i wyglądają w motywie własnym",
+            ),
+        ),
+        ReleaseNotes(
             versionCode = 16,
             versionName = "1.10",
             items = listOf(

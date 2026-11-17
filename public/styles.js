@@ -34,6 +34,12 @@
     { id: 'pink-light', label: 'Róż', hint: 'jasny · pudrowy róż', group: 'color' },
     { id: 'mix-dark', label: 'Połączony', hint: 'ciemny · fiolet przechodzący w róż', group: 'color' },
     { id: 'mix-light', label: 'Połączony', hint: 'jasny · fiolet z różem', group: 'color' },
+    /*
+     * Motyw „Własny” nie ma stałej palety — liczy ją `customPalette` z dwóch
+     * kolorów użytkownika (akcent + tło). `dark` opisuje tylko parę domyślną;
+     * o tonacji decyduje kolor tła (tak samo jak w `CustomTheme.kt`).
+     */
+    { id: 'custom', label: 'Własny', hint: 'twoje dwa kolory · akcent i tło', group: 'custom' },
   ];
 
   const STYLE_GROUPS = [
@@ -41,6 +47,7 @@
     { key: 'visionos', label: 'visionOS' },
     { key: 'classic', label: 'Klasyczne' },
     { key: 'color', label: 'Kolorowe' },
+    { key: 'custom', label: 'Własny' },
   ];
 
   /**
@@ -340,6 +347,145 @@
 
   const DEFAULT_STYLE = 'lg2-dark';
 
+  /* ==========================================================================
+     Motyw „Własny” — te same reguły co `android/…/ui/theme/CustomTheme.kt`.
+
+     Użytkownik wybiera dwa kolory (akcent i tło), a reszta palety jest z nich
+     wyliczana: tekst, panele, obramowania, gradient i plamy tła. Tonacja wynika
+     z jasności tła, więc jasne tło nie dostanie białego tekstu. Akcent jest
+     dociągany do czytelnego kontrastu (pętla jak w Kotlinie) — inaczej jasny
+     akcent na jasnym tle dawałby nieczytelną plakietkę notatki.
+
+     Kolory zapisujemy jako `#RRGGBB`; stałe niżej MUSZĄ być równe stałym
+     z `CustomTheme.kt` — pilnuje tego `scripts/self-test.js`.
+     ========================================================================== */
+
+  const CUSTOM_DEFAULT = { primary: '#7C5CFF', background: '#0C0A18' };
+  /* Te stałe MUSZĄ być równe stałym z `CustomTheme.kt`. */
+  const CUSTOM_DARK_LUMINANCE = 0.179;
+  const CUSTOM_ACCENT_CONTRAST_TARGET = 4.0;
+  const CUSTOM_ACCENT_STEP = 0.14;
+  const CUSTOM_MAX_ACCENT_STEPS = 10;
+  const CUSTOM_TEXT_ON_DARK = 'F2F5FF';
+  const CUSTOM_TEXT_ON_LIGHT = '12141B';
+  const CUSTOM_ACCENT_ON_DARK = '10131A';
+  const CUSTOM_ACCENT_ON_LIGHT = 'FFFFFF';
+  const CUSTOM_RADIUS = 26;
+
+  /** `#RRGGBB` (albo bez `#`, albo 3 znaki) → wielkie litery; `null` gdy śmieci. */
+  function normalizeCustomHex(value) {
+    const raw = String(value == null ? '' : value).trim().replace(/^#/, '').toUpperCase();
+    if (!/^([0-9A-F]{3}|[0-9A-F]{6})$/.test(raw)) return null;
+    const six = raw.length === 3 ? raw.split('').map((ch) => ch + ch).join('') : raw;
+    return `#${six}`;
+  }
+
+  /** Para kolorów z ustawień; brakujące/niepoprawne zastępuje para domyślna. */
+  function normalizeCustom(primary, background) {
+    return {
+      primary: normalizeCustomHex(primary) || CUSTOM_DEFAULT.primary,
+      background: normalizeCustomHex(background) || CUSTOM_DEFAULT.background,
+    };
+  }
+
+  function hexToRgb(hex) {
+    const clean = normalizeCustomHex(hex);
+    if (!clean) return null;
+    const value = parseInt(clean.slice(1), 16);
+    return { r: (value >> 16) & 0xff, g: (value >> 8) & 0xff, b: value & 0xff };
+  }
+
+  /** „F2F5FF” z kanałów — zapis palet (`RRGGBB` bez kanału alfa). */
+  const rgbHex = (c) => `${c.r.toString(16).padStart(2, '0')}${c.g.toString(16).padStart(2, '0')}${c.b.toString(16).padStart(2, '0')}`.toUpperCase();
+
+  /** Mieszanie kanałów: 0 = a, 1 = b (jak `mix` w Kotlinie). */
+  const mixRgb = (a, b, t) => ({
+    r: Math.round(a.r + (b.r - a.r) * t),
+    g: Math.round(a.g + (b.g - a.g) * t),
+    b: Math.round(a.b + (b.b - a.b) * t),
+  });
+
+  /**
+   * Luminancja względna wg WCAG (0–1) — linearyzacja z wykładnikiem 2,4.
+   * Bez niej środek skali wypada za jasno: `#7F6AFF` wychodził „ciemny”
+   * i dostawał biały tekst o kontraście 3,7:1 zamiast ciemnego o 5:1.
+   */
+  function relativeLuminance(c) {
+    const channel = (value) => {
+      const srgb = value / 255;
+      return srgb <= 0.03928 ? srgb / 12.92 : Math.pow((srgb + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+  }
+
+  /** Kontrast WCAG dwóch kolorów (1–21). */
+  const contrast = (a, b) => {
+    const la = relativeLuminance(a);
+    const lb = relativeLuminance(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+
+  /**
+   * Kolor tekstu na akcencie: **biały**, gdy ma co najmniej
+   * `CUSTOM_ACCENT_CONTRAST_TARGET` kontrastu (jak przycisk Material 3),
+   * inaczej ciemny — np. na żółtym akcencie.
+   */
+  function accentTextOn(accent) {
+    const light = hexToRgb(`#${CUSTOM_ACCENT_ON_LIGHT}`);
+    return contrast(light, accent) >= CUSTOM_ACCENT_CONTRAST_TARGET
+      ? light
+      : hexToRgb(`#${CUSTOM_ACCENT_ON_DARK}`);
+  }
+
+  /** Akcent dociągnięty do czytelnego kontrastu na tle (jak `readableAccent`). */
+  function readableAccent(primary, background, dark) {
+    let accent = primary;
+    const towards = dark ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 };
+    for (let i = 0; i < CUSTOM_MAX_ACCENT_STEPS; i += 1) {
+      if (contrast(accent, background) >= CUSTOM_ACCENT_CONTRAST_TARGET) return accent;
+      accent = mixRgb(accent, towards, CUSTOM_ACCENT_STEP);
+    }
+    return accent;
+  }
+
+  /** Paleta motywu „Własny” — ten sam kształt co wpisy w `PALETTES`. */
+  function customPalette(primary, background) {
+    const colors = normalizeCustom(primary, background);
+    const bg = hexToRgb(colors.background);
+    const base = hexToRgb(colors.primary);
+    const dark = relativeLuminance(bg) < CUSTOM_DARK_LUMINANCE;
+    const text = hexToRgb(dark ? CUSTOM_TEXT_ON_DARK : CUSTOM_TEXT_ON_LIGHT);
+    const accent = readableAccent(base, bg, dark);
+    const accentOn = accentTextOn(accent);
+    const end = dark ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
+    const accentHex = rgbHex(accent);
+
+    return {
+      id: 'custom',
+      label: 'Własny',
+      dark,
+      page: `FF${rgbHex(bg)}`,
+      gradient: [
+        `FF${rgbHex(mixRgb(bg, accent, 0.16))}`,
+        `FF${rgbHex(mixRgb(bg, accent, 0.04))}`,
+        `FF${rgbHex(mixRgb(bg, end, 0.25))}`,
+      ],
+      blobs: [
+        { c: `FF${rgbHex(mixRgb(accent, { r: 255, g: 255, b: 255 }, 0.12))}`, a: 0.42, cx: 0.10, cy: -0.02, rx: 0.82, ry: 0.66 },
+        { c: `FF${accentHex}`, a: 0.26, cx: 0.92, cy: 0.08, rx: 0.66, ry: 0.56 },
+      ],
+      panel: `1A${accentHex}`,
+      panelSolid: `FF${rgbHex(mixRgb(bg, accent, 0.10))}`,
+      edge: `33${rgbHex(text)}`,
+      text: `FF${rgbHex(text)}`,
+      textSoft: `FF${rgbHex(mixRgb(text, bg, 0.35))}`,
+      accent: `FF${accentHex}`,
+      accentOn: `FF${rgbHex(accentOn)}`,
+      accentSoft: `26${accentHex}`,
+      radius: CUSTOM_RADIUS,
+    };
+  }
+
   /** Stare identyfikatory z wersji web — migracja bez błędu. */
   const ALIASES = {
     glass: 'lg2-dark',
@@ -347,5 +493,15 @@
     'visionos-fast': 'visionos-perf-dark',
   };
 
-  global.PlanStyles = { STYLES, STYLE_GROUPS, PALETTES, DEFAULT_STYLE, ALIASES };
+  global.PlanStyles = {
+    STYLES,
+    STYLE_GROUPS,
+    PALETTES,
+    DEFAULT_STYLE,
+    ALIASES,
+    CUSTOM_DEFAULT,
+    normalizeCustom,
+    normalizeCustomHex,
+    customPalette,
+  };
 }(typeof window !== 'undefined' ? window : globalThis));

@@ -1326,3 +1326,87 @@ nieistniejących zajęć.
 
 
 
+
+## 25. Motyw „Własny”, szklane notatki i notatki w widżetach (17.11.2026)
+
+Zgłoszenie: (a) plakietka notatki na kafelku ma lepiej pasować do stylu — może
+z przezroczystością; (b) notatki mają być także w widżetach; (c) ma dojść własny
+motyw, w którym użytkownik wybiera dwa główne kolory; (d) widżety mają ten motyw
+obsługiwać.
+
+### Motyw „Własny”: dwa kolory, reszta wyliczana
+
+Nowy styl `custom` (grupa „Własny”) nie ma stałej palety — liczy ją funkcja
+z dwóch kolorów: **akcentu** i **tła**. Dzięki temu każda para daje spójny motyw,
+a nie „kolor, który psuje resztę interfejsu”.
+
+| Element palety | Reguła |
+| --- | --- |
+| tonacja (jasna/ciemna) | luminancja względna WCAG tła `< 0,179` → ciemna (próg, w którym biały i czarny tekst mają ten sam kontrast) |
+| tło strony | kolor użytkownika, bez zmian |
+| tekst | `#F2F5FF` (ciemne tło) albo `#12141B` (jasne) |
+| tekst drugorzędny | tekst zmieszany z tłem (35%) |
+| akcent | kolor użytkownika dociągany krokami po 14% do kontrastu WCAG **≥ 4,0** (w stronę bieli na ciemnym tle, czerni na jasnym) |
+| tekst na akcencie | biały, gdy ma ≥ 4,0 kontrastu; inaczej `#10131A` (np. na żółtym) |
+| panele i krawędzie | akcent 10% i tekst 20% (krycie w ARGB) — motyw „szklany”, jak „Kolorowe” |
+| gradient i plamy tła | akcent zmieszany z tłem (16%, 4%) + domknięcie w stronę czerni/bieli (25%); dwie plamy akcentu |
+| promień | 26 dp |
+
+Stałe i wzory są **identyczne w trzech miejscach**: `CustomTheme.kt`,
+`public/styles.js` (`customPalette`) i `public/theme-boot.js` (tonacja dla zimnego
+startu). Pilnuje tego `scripts/self-test.js` (wartości stałych + zachowanie palety).
+Pierwsza wersja używała surowej luminancji 0–255 i progu 110 — jasny fiolet
+`#7F6AFF` wychodził wtedy „ciemny” i dostawał biały tekst o kontraście 3,7:1.
+Po przejściu na WCAG ten sam kolor daje ciemny tekst (5:1); sprawdzone na
+emulatorze (zrzut niżej w weryfikacji).
+
+| Gdzie | Co |
+| --- | --- |
+| web | Opcje → Wygląd → „Własny motyw”: dwa natywne wybieraki koloru (`input type="color"`), próbka, zapis hex; zmiana motywu działa **na żywo** (`input`), zapis w `localStorage` po zamknięciu wybieraka (`change`) |
+| APK | Opcje → Wygląd → „Własny”: dwa wiersze kolorów + suwaki barwy, nasycenia i jasności (HSV, `domain/ColorHsv.kt`); podgląd zmienia się w trakcie przeciągania, zapis po puszczeniu palca |
+| przechowywanie | web: `customPrimary` / `customBackground` w `plan-zajec:v2`; APK: `custom-primary` / `custom-background` w SharedPreferences (`PlanSettings`) |
+| widżety | paleta liczona z tych samych dwóch kolorów (`WidgetTheme.colors(..., custom)`), a para kolorów jest częścią odcisku widżetu — zmiana samej barwy przerysowuje kafel bez zmiany `styleId` |
+
+### Plakietka notatki: ze szkła, nie z naklejki
+
+| | przed | teraz |
+| --- | --- | --- |
+| wypełnienie | lity `--accent` | gradient akcentu 30% → 10% (web), akcent 22% (APK) |
+| krawędź | brak | hairline 1 px akcentu 45% (`box-shadow: inset`, `BorderStroke` w Compose) |
+| tekst | `--accent-on` (biały/ciemny na litym tle) | `--accent` |
+| kształt | ścięty lewy brzeg, pełna wysokość karty, maks. 35% szerokości | bez zmian |
+
+Krycie jest **stałe dla wszystkich palet** (nie zależy od motywu): na jasnych
+motywach mocniejszy akcent zabrałby kontrast akcentowemu tekstowi. Kolor nadal
+bierze się z motywu, więc działa też w „Własnym”. `native.css` nie używa
+`backdrop-filter` — tak jak APK, która nie ma prawdziwego rozmycia tła.
+
+### Notatki w widżetach
+
+| Element | Zmiana |
+| --- | --- |
+| model | `WidgetRow.note` (+ w odcisku `fingerprint()`, więc notatka unieważnia widżet) |
+| budowa | `WidgetModelBuilder.build(..., notes)` / `DayWidgetModelBuilder.build(..., notes)`, wspólny `rowOf(slot, notes)` |
+| rysowanie | `WidgetNoteChip` — pigułka „podbarwienie akcentem + tekst akcentu” (jak plakietka typu zajęć), we **wszystkich 7 wariantach** wiersza (`Vision`, `Minimal`, `Accent`, `Timeline`, `Tiles`, `Compact`, `Glass`) |
+| dane bez sieci | nowy `data/local/NotesStore.kt` (`FileNotesStore` → `cache/notes.json`, zapis przez plik tymczasowy); `NotesRepository` zapisuje kopię po każdym `GET /api/notes` i po każdym udanym `POST`, a widżet czyta ją przez `cached()` |
+| świeżość | notatki i kolory motywu własnego trafiają do **stanu Glance** (`widget-notes`, `widget-custom-primary/background`) tą samą aktualizacją co styl i tonacja — sesja kompozycji Glance nie widzi danych spoza stanu, więc bez tego kafel zostałby przy starych plakietkach |
+| po zapisie notatki | `PlanViewModel.saveNote()` woła `onPlanChanged()` → widżet przerysowuje się od razu (sprawdzone na emulatorze: „Kolos” pojawił się na pulpicie bez otwierania aplikacji) |
+
+### Wersje
+
+| Co | Wartość |
+| --- | --- |
+| powłoka web | **v41** (`?v=41` w `index.html` i `SHELL_ASSETS`, `VERSION='v41'`) |
+| „Co nowego” web | **v36** (wpis w `public/schedule.js`) |
+| APK | **1.12 (18)** (`android/version.properties`, wpis „Co nowego”) |
+
+### Weryfikacja
+
+| Sprawdzenie | Wynik |
+| --- | --- |
+| `node scripts/self-test.js` | **135 testów, 0 błędów** (było 132) — nowe: paleta „Własnego” (tonacja, tekst, kontrast akcentu, normalizacja zapisu), stałe równe `CustomTheme.kt`, edytor kolorów w Opcjach, 7 wariantów widżetu z notatką, kopia notatek dla widżetu, nowe `background`/`color` plakietki |
+| `:app:testDebugUnitTest` | **272 testy, 0 błędów** (było 251) — `CustomThemeTest` (8), `ColorHsvTest` (6), `NotesRepositoryTest` (4), notatka w modelu widżetu + odcisk, paleta własna w widżecie |
+| `:app:lintDebug` | exit 0 |
+| Chromium (`127.0.0.1:3399`) | plakietka: `linear-gradient(168deg, rgba(220,236,255,0.3), rgba(220,236,255,0.1))`, tekst `--accent`, hairline w `box-shadow`; motyw „Własny”: `data-style=custom`, `--accent`/`--page`/`--text` z dwóch kolorów, zapis w `localStorage`; tonacja jasna i ciemna renderują plan poprawnie (zrzuty: ciemny `#22D3EE/#08121A`, jasny `#6D28D9/#F4F5F8`) |
+| Emulator (Pixel 9 Pro, API 34) | APK 1.12-debug: „Co nowego 1.12 (18)”, notatka „Kolos” z chipa → plakietka na kafelku (szkło), Opcje → Wygląd → „Własny” z dwoma kolorami i trzema suwakami, zmiana tła na jasny fiolet → **ciemny tekst** (poprawka WCAG), widżety na pulpicie: plakietka „Kolos” przy zajęciach i przemalowanie obu kafli na motyw własny |
+| Wdrożenie / wydanie APK | **nie wykonane** — czeka na polecenie |

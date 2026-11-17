@@ -339,6 +339,16 @@ const ScheduleViews = {
  */
 const WHATS_NEW = [
   {
+    version: 'v36',
+    title: 'Motywy: własne dwa kolory i notatki na kafelkach jak szkło',
+    items: [
+      'Opcje → Wygląd → „Własny”: wybierz kolor główny (akcent) i kolor tła — reszta motywu dobiera się sama',
+      'Jasność motywu wynika z koloru tła, a jasny akcent jest przyciemniany do czytelnego kontrastu',
+      'Ta sama para kolorów działa w natywnej aplikacji i w widżetach na pulpicie',
+      'Plakietka notatki („Kolos”, „Egzamin”) jest teraz przezroczysta: delikatne podbarwienie akcentem i cienka krawędź zamiast litego prostokąta',
+    ],
+  },
+  {
     version: 'v35',
     title: 'Notatki na kafelkach zajęć: „Kolos”, „Egzamin” — widoczne dla wszystkich',
     items: [

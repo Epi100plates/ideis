@@ -1041,10 +1041,18 @@ test('notatka jest na kafelku i w szczegółach, w kolorze motywu', () => {
   assert.match(app, /getJson\('\/api\/notes'/);
   // Notatka jest wspólna — nie może siedzieć tylko w localStorage.
   assert.ok(!/localStorage[^\n]*notes/i.test(app), 'notatki muszą przychodzić z serwera');
-  // Kolor z motywu + limit szerokości 35% i dopasowanie rozmiaru.
+  // Wygląd „szklany” (APK 1.12): przezroczyste podbarwienie akcentem, cienka
+  // krawędź i tekst w kolorze akcentu — zamiast litego wypełnienia akcentem.
   assert.match(css, /\.note-badge\s*\{[^}]*max-width: 35%/);
-  assert.match(css, /\.note-badge\s*\{[^}]*background: var\(--accent\)/);
-  assert.match(css, /\.note-badge\s*\{[^}]*color: var\(--accent-on\)/);
+  assert.match(css, /\.note-badge\s*\{[^}]*linear-gradient\(168deg/);
+  assert.match(css, /\.note-badge\s*\{[^}]*rgba\(var\(--accent-rgb\), 0\.30\)/);
+  assert.match(css, /\.note-badge\s*\{[^}]*rgba\(var\(--accent-rgb\), 0\.10\)/);
+  assert.match(css, /\.note-badge\s*\{[^}]*box-shadow: inset 0 0 0 1px rgba\(var\(--accent-rgb\), 0\.45\)/);
+  assert.match(css, /\.note-badge\s*\{[^}]*color: var\(--accent\)/);
+  assert.ok(
+    !/\.note-badge\s*\{[^}]*background: var\(--accent\)/.test(css),
+    'plakietka nie może wracać do litego wypełnienia akcentem',
+  );
   assert.match(app, /function fitNotes\(/);
   assert.match(app, /NOTE_FIT = \{ max: 20, min: 9 \}/);
   // Ścięty lewy brzeg (APK 1.10): ukośna krawędź liczona z wysokości karty.
@@ -1376,13 +1384,15 @@ test('style w webie zgadzają się z StyleCatalog.kt (id, podpis, grupa, jasnoś
   const kotlin = fs.readFileSync(path.join(
     __dirname, '..', 'android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'ui', 'theme', 'StyleCatalog.kt',
   ), 'utf8');
-  const groups = { LIQUID_GLASS: 'lg', VISION_OS: 'visionos', CLASSIC: 'classic', KOLOROWE: 'color' };
+  const groups = {
+    LIQUID_GLASS: 'lg', VISION_OS: 'visionos', CLASSIC: 'classic', KOLOROWE: 'color', WLASNY: 'custom',
+  };
   const kotlinStyles = [...kotlin.matchAll(
     /StyleDef\("([a-z0-9-]+)", "([^"]+)", "([^"]+)", StyleGroup\.(\w+), (true|false)\)/g,
   )].map((m) => ({
     id: m[1], label: m[2], hint: m[3], group: groups[m[4]], dark: m[5] === 'true',
   }));
-  assert.equal(kotlinStyles.length, 20, 'StyleCatalog.kt powinien mieć 20 pozycji');
+  assert.equal(kotlinStyles.length, 21, 'StyleCatalog.kt powinien mieć 21 pozycji');
 
   const web = loadPlanStyles();
   assert.deepEqual(web.STYLES.map((s) => s.id), kotlinStyles.map((s) => s.id), 'kolejność i id stylów');
@@ -1394,9 +1404,10 @@ test('style w webie zgadzają się z StyleCatalog.kt (id, podpis, grupa, jasnoś
       `opis stylu ${k.id}`,
     );
     const pal = web.PALETTES[k.id];
-    // „Auto” nie ma własnej palety — rozwiązuje się do `dark`/`light` jak w Compose.
-    if (k.id === 'auto') {
-      assert.equal(pal, undefined, 'auto nie może mieć własnej palety');
+    // „Auto” rozwiązuje się do `dark`/`light`, a „Własny” liczy paletę z kolorów
+    // użytkownika (`customPalette`) — żaden z nich nie ma stałego wpisu.
+    if (k.id === 'auto' || k.id === 'custom') {
+      assert.equal(pal, undefined, `${k.id} nie może mieć stałej palety`);
       continue;
     }
     assert.ok(pal, `brak palety ${k.id} w webie`);
@@ -1412,6 +1423,122 @@ test('style w webie zgadzają się z StyleCatalog.kt (id, podpis, grupa, jasnoś
   for (const key of new Set(webGroups)) {
     assert.ok(web.STYLE_GROUPS.some((g) => g.key === key), `brak grupy ${key} w STYLE_GROUPS`);
   }
+});
+
+/**
+ * Motyw „Własny”: paleta liczona z dwóch kolorów. Test pilnuje reguł, które
+ * muszą być **identyczne w Kotlinie** (`CustomTheme.kt`) — czytelności tekstu,
+ * tonacji z tła i dociągania akcentu do kontrastu.
+ */
+test('motyw własny liczy paletę z dwóch kolorów według reguł z CustomTheme.kt', () => {
+  const web = loadPlanStyles();
+  assert.deepEqual(web.CUSTOM_DEFAULT, { primary: '#7C5CFF', background: '#0C0A18' });
+
+  // Ciemne tło → ciemna tonacja i jasny tekst.
+  const dark = web.customPalette('#7C5CFF', '#0C0A18');
+  assert.equal(dark.id, 'custom');
+  assert.equal(dark.dark, true);
+  assert.ok(dark.text.endsWith('F2F5FF'), `tekst na ciemnym tle: ${dark.text}`);
+  assert.equal(dark.page, 'FF0C0A18', 'tło strony to kolor użytkownika');
+  assert.equal(dark.radius, 26);
+  assert.ok(dark.blobs.length === 2 && dark.blobs.every((b) => /^FF[0-9A-F]{6}$/.test(b.c)));
+
+  // Jasne tło → jasna tonacja i ciemny tekst (bez białego tekstu na bieli).
+  const light = web.customPalette('#7C5CFF', '#F7F7FB');
+  assert.equal(light.dark, false);
+  assert.ok(light.text.endsWith('12141B'), `tekst na jasnym tle: ${light.text}`);
+
+  // Akcent zawsze czytelny na tle strony: kontrast WCAG ≥ 4,0 (tolerancja 0,1).
+  const channelLuminance = (c) => {
+    const srgb = c / 255;
+    return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+  const contrastOf = (argbA, argbB) => {
+    const lum = (argb) => {
+      const v = Number.parseInt(argb.slice(2), 16);
+      return 0.2126 * channelLuminance((v >> 16) & 0xFF)
+        + 0.7152 * channelLuminance((v >> 8) & 0xFF)
+        + 0.0722 * channelLuminance(v & 0xFF);
+    };
+    const la = lum(argbA);
+    const lb = lum(argbB);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+  for (const palette of [dark, light]) {
+    const ratio = contrastOf(palette.accent, palette.page);
+    assert.ok(
+      ratio >= 3.9,
+      `kontrast akcentu ${palette.accent} na tle ${palette.page} = ${ratio.toFixed(2)}`,
+    );
+  }
+
+  // Kolejność argumentów nie może wpływać na wynik — tylko wartości.
+  assert.deepEqual(web.customPalette('#7c5cff', '#0c0a18'), dark, 'zapis małymi literami');
+  // Śmieci wracają do pary domyślnej (nie wysypują motywu).
+  assert.deepEqual(web.normalizeCustom('nie-kolor', null), {
+    primary: web.CUSTOM_DEFAULT.primary,
+    background: web.CUSTOM_DEFAULT.background,
+  });
+  assert.equal(web.normalizeCustomHex('#abc'), '#AABBCC', 'skrót 3 znaków');
+  // Stałe reguł muszą istnieć w obu implementacjach.
+  const kotlin = fs.readFileSync(path.join(
+    __dirname, '..', 'android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'ui', 'theme', 'CustomTheme.kt',
+  ), 'utf8');
+  for (const [kotlinName, value] of [
+    ['DARK_LUMINANCE', '0.179'],
+    ['ACCENT_CONTRAST_TARGET', '4.0'],
+    ['ACCENT_STEP', '0.14'],
+    ['MAX_ACCENT_STEPS', '10'],
+  ]) {
+    assert.ok(kotlin.includes(`const val ${kotlinName} = ${value}`), `CustomTheme.kt: brak ${kotlinName}`);
+  }
+  assert.match(readRepo('public', 'theme-boot.js'), /luminance\(customBg\) < 0\.179/,
+    'bootstrap musi wybrać tonację motywu własnego tym samym progiem');
+  // Próg dobrany tak, żeby jasny fiolet nie dostawał białego tekstu.
+  const midTone = web.customPalette('#7F6AFF', '#7F6AFF');
+  assert.equal(midTone.dark, false, 'jasny fiolet to motyw jasny');
+  assert.ok(midTone.text.endsWith('12141B'), 'jasny fiolet → ciemny tekst');
+});
+
+test('Opcje → Wygląd mają wybór dwóch kolorów motywu własnego', () => {
+  const app = readRepo('public', 'app.js');
+  const css = readRepo('public', 'native.css');
+
+  assert.match(app, /function settingsCustomHtml\(/);
+  assert.match(app, /row\('customPrimary', 'customPrimaryHex'/);
+  assert.match(app, /row\('customBackground', 'customBackgroundHex'/);
+  assert.match(app, /type="color"/);
+  assert.match(app, /function bindCustomColors\(/);
+  assert.match(app, /writePrefs\(\{\s*\n?\s*customPrimary/);
+  assert.match(app, /function paletteOf\(/);
+  assert.match(app, /customPalette\(state\.custom\.primary, state\.custom\.background\)/);
+  // Strona „Wygląd” musi podpinać słuchacze po każdym renderze (arkusz
+  // rysuje się od nowa, więc delegacja kliknięć nie wystarczy).
+  assert.match(app, /if \(page === 'look'\) bindCustomColors\(body\)/);
+  assert.match(css, /\.settings-color-input/);
+  assert.match(css, /\.settings-color-swatch/);
+  // Widżety: ten sam wybór trafia do odcisku, więc zmiana koloru je przerysowuje.
+  const theme = readRepo('android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'widget', 'WidgetTheme.kt');
+  assert.match(theme, /custom\.fingerprint\(\)/);
+});
+
+test('widżety pokazują notatki z kafelka (obie kopie i podgląd)', () => {
+  const row = readRepo('android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'widget', 'WidgetModel.kt');
+  const look = readRepo('android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'widget', 'WidgetLookView.kt');
+  const updater = readRepo('android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'widget', 'WidgetUpdater.kt');
+  const notes = readRepo('android', 'app', 'src', 'main', 'java', 'pl', 'matiit', 'planzajec', 'data', 'NotesRepository.kt');
+
+  // Model: notatka w wierszu i w odcisku treści (inaczej widżet się nie odświeży).
+  assert.match(row, /val note: String\? = null/);
+  assert.match(row, /notes: Map<String, String> = emptyMap\(\)/);
+  assert.match(row, /\$\{note\.orEmpty\(\)\}/);
+  // Każdy z siedmiu wariantów rysuje plakietkę.
+  assert.equal((look.match(/RowNote\(row, colors/g) || []).length, 7, 'siedem wariantów wiersza');
+  assert.match(look, /fun WidgetNoteChip\(/);
+  // Notatki dla widżetu idą z kopii na dysku (bez sieci).
+  assert.match(updater, /PlanGraph\.notes\(app\)\.cached\(\)/);
+  assert.match(updater, /notes = notes/);
+  assert.match(notes, /fun cached\(\): Map<String, String> = store\.read\(\)/);
 });
 
 test('plan zmienia się tylko z Opcji — bez skrótu w nagłówku', () => {

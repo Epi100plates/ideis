@@ -223,6 +223,14 @@ private val NOTE_SLANT_MAX = 44.dp
 private val NOTE_PAD_START = 30.dp
 
 /**
+ * Krycie wypełnienia i krawędzi plakietki. Wartości są **stałe dla wszystkich
+ * motywów** (jak `rgba(var(--accent-rgb), …)` w webie): na jasnych paletach
+ * mocniejsze krycie zabierałoby kontrast akcentowemu tekstowi.
+ */
+private const val NOTE_FILL_ALPHA = 0.22f
+private const val NOTE_EDGE_ALPHA = 0.45f
+
+/**
  * Kształt plakietki notatki: lewy brzeg **ścięty ukośnie** (chorągiewka przy
  * prawej krawędzi karty), a nie zaokrąglony. Skos rośnie z wysokością karty,
  * ale nie bardziej niż [NOTE_SLANT_MAX] — dzięki temu tekst zawsze zostaje
@@ -241,9 +249,16 @@ private fun noteSlantShape(ratio: Float, maxSlantPx: Float): Shape = GenericShap
  * Plakietka notatki na kafelku — jak w projekcie z webu: pełna wysokość karty,
  * ścięty lewy brzeg, zaokrąglenie karty z prawej (karta przycina zawartość).
  *
- * Kolor bierze się z motywu (`primary`/`onPrimary`, czyli akcent palety), więc
- * notatka jest widoczna w każdym z 20 motywów. Rozmiar tekstu dopasowuje
- * `TextAutoSize` (22 → 9 sp), zamiast łamać notatkę na dwie linie.
+ * Wygląd „szklany” (APK 1.12): zamiast pełnego wypełnienia akcentem plakietka ma
+ * **przezroczyste** podbarwienie akcentem i cienką krawędź w tym samym kolorze,
+ * a tekst jest w kolorze akcentu. Dzięki temu notatka czyta się jak część karty
+ * w każdym motywie (jasnym i ciemnym) i nie przykrywa tła tak mocno jak dawny
+ * lity prostokąt. Krycie jest stałe, a nie zależne od palety — inaczej na jasnych
+ * motywach tekst traciłby kontrast.
+ *
+ * Kolor bierze się z motywu (`primary`), więc notatka jest widoczna także
+ * w motywie „Własny”. Rozmiar tekstu dopasowuje `TextAutoSize` (22 → 9 sp),
+ * zamiast łamać notatkę na dwie linie.
  */
 @Composable
 fun NoteBadge(
@@ -253,10 +268,12 @@ fun NoteBadge(
 ) {
     val maxSlantPx = with(LocalDensity.current) { NOTE_SLANT_MAX.toPx() }
     val shape = remember(maxSlantPx) { noteSlantShape(NOTE_SLANT, maxSlantPx) }
+    val accent = MaterialTheme.colorScheme.primary
     Surface(
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
+        color = accent.copy(alpha = NOTE_FILL_ALPHA),
+        contentColor = accent,
         shape = shape,
+        border = BorderStroke(1.dp, accent.copy(alpha = NOTE_EDGE_ALPHA)),
         modifier = modifier
             .fillMaxHeight()
             .widthIn(max = maxWidth),

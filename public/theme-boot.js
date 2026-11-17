@@ -1,4 +1,4 @@
-// Ustawia styl i tło przed pierwszym malowaniem (zinmy start PWA nie mignie
+// Ustawia styl i tło przed pierwszym malowaniem (zimny start PWA nie mignie
 // jasnym tłem). Osobny plik, bo CSP nie pozwala na inline <script>.
 
 (function () {
@@ -18,12 +18,36 @@
     'visionos-light': false, 'visionos-perf-light': false, 'apple': false, 'light': false,
     'violet-light': false, 'pink-light': false, 'mix-light': false
   };
-  var picked = 'lg2-dark';
+
+  // Luminancja względna wg WCAG (0–1) i próg 0.179 — ten sam co w
+  // `CustomTheme.kt` i `styles.js`: poniżej progu motyw jest ciemny.
+  function luminance(hex) {
+    var v = parseInt(hex.slice(1), 16);
+    var channel = function (value) {
+      var srgb = value / 255;
+      return srgb <= 0.03928 ? srgb / 12.92 : Math.pow((srgb + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel((v >> 16) & 255)
+      + 0.7152 * channel((v >> 8) & 255)
+      + 0.0722 * channel(v & 255);
+  }
+
+  var prefs = {};
   try {
-    var prefs = JSON.parse(localStorage.getItem('plan-zajec:v2') || '{}');
-    if (prefs.styleId) picked = prefs.styleId;
-    else if (prefs.theme && prefs.theme !== 'auto') picked = prefs.theme;
+    prefs = JSON.parse(localStorage.getItem('plan-zajec:v2') || '{}') || {};
   } catch (e) { /* tryb prywatny — zostają domyślne */ }
+
+  // Motyw „Własny”: tło wybiera użytkownik, więc bez odczytu zapisu zimny start
+  // mignąłby domyślnym granatem. Tonacja też wynika z tego koloru.
+  var customBg = '#0c0a18';
+  var rawBg = String(prefs.customBackground || '').trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(rawBg)) customBg = rawBg;
+  colors.custom = customBg;
+  dark.custom = luminance(customBg) < 0.179;
+
+  var picked = 'lg2-dark';
+  if (prefs.styleId) picked = prefs.styleId;
+  else if (prefs.theme && prefs.theme !== 'auto') picked = prefs.theme;
   if (picked === 'glass') picked = 'lg2-dark';
   if (picked === 'lg2-fast' || picked === 'visionos-fast') picked = 'visionos-perf-dark';
   if (picked === 'auto') picked = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -35,4 +59,4 @@
   root.style.colorScheme = dark[picked] === false ? 'light' : 'dark';
   var meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', colors[picked]);
-})();
+}());

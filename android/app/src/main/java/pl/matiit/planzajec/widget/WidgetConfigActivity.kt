@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import pl.matiit.planzajec.data.PlanGraph
+import pl.matiit.planzajec.ui.theme.CustomColors
 import pl.matiit.planzajec.ui.theme.PlanTheme
 import pl.matiit.planzajec.ui.theme.StyleCatalog
 import pl.matiit.planzajec.ui.theme.SystemBarsEffect
@@ -49,8 +50,11 @@ class WidgetConfigActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val styleId = PlanGraph.settings(applicationContext).styleId
-            val palette = StyleCatalog.palette(styleId, isSystemInDarkTheme())
+            val settings = PlanGraph.settings(applicationContext)
+            val styleId = settings.styleId
+            // Motyw własny: konfigurator ma wyglądać tak samo jak widżet.
+            val custom = CustomColors.normalize(settings.customPrimary, settings.customBackground)
+            val palette = StyleCatalog.palette(styleId, isSystemInDarkTheme(), custom)
             SystemBarsEffect(window, palette)
 
             // Wygląd trzymamy w SharedPreferences, więc zwykle znamy go od razu
@@ -68,7 +72,7 @@ class WidgetConfigActivity : ComponentActivity() {
                 }
             }
 
-            PlanTheme(styleId = styleId) {
+            PlanTheme(styleId = styleId, customColors = custom) {
                 val start = initial
                 if (start == null) {
                     // Odczyt stanu widżetu jest asynchroniczny (DataStore) —

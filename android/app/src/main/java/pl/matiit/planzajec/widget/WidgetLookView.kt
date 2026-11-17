@@ -235,6 +235,39 @@ internal fun WidgetLookHeader(
 }
 
 /**
+ * Plakietka notatki w wierszu widżetu („Kolos”, „Egzamin”).
+ *
+ * Ten sam język co w aplikacji: delikatne podbarwienie akcentem i tekst
+ * w kolorze akcentu, więc plakietka pasuje do każdego motywu (także „Własnego”).
+ * W widżecie nie ma miejsca na chorągiewkę z kafelka — zostaje zwarta pigułka
+ * o rozmiarze tekstu metadanych.
+ */
+@Composable
+internal fun WidgetNoteChip(note: String, colors: WidgetColors) {
+    Text(
+        text = note,
+        modifier = GlanceModifier
+            .background(colors.accentWash)
+            .cornerRadius(7.dp)
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+        style = TextStyle(
+            color = colors.accent,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+        ),
+        maxLines = 1,
+    )
+}
+
+/** Chip notatki po prawej stronie wiersza — nic, gdy notatki nie ma. */
+@Composable
+private fun RowNote(row: WidgetRow, colors: WidgetColors, gap: Boolean = true) {
+    val note = row.note?.takeIf { it.isNotBlank() } ?: return
+    if (gap) Spacer(GlanceModifier.width(6.dp))
+    WidgetNoteChip(note, colors)
+}
+
+/**
  * Jedne zajęcia: godziny, przedmiot, typ, sala/zdalnie i długość.
  * `compact` to widżet tygodnia — bez długości, żeby zmieścić więcej dni.
  */
@@ -283,6 +316,7 @@ internal fun WidgetLookRow(
                     )
                 }
             }
+            RowNote(row, colors)
         }
 
         WidgetLook.Minimal -> Row(
@@ -309,6 +343,7 @@ internal fun WidgetLookRow(
                     )
                 }
             }
+            RowNote(row, colors)
         }
 
         WidgetLook.Accent -> Row(
@@ -354,6 +389,7 @@ internal fun WidgetLookRow(
                     )
                 }
             }
+            RowNote(row, colors)
         }
 
         WidgetLook.Timeline -> Row(
@@ -409,6 +445,7 @@ internal fun WidgetLookRow(
                     )
                 }
             }
+            RowNote(row, colors)
         }
 
         // Kafelki jak w aplikacji: karta zajęć z paskiem w kolorze przedmiotu
@@ -474,6 +511,7 @@ internal fun WidgetLookRow(
                         )
                     }
                 }
+                RowNote(row, colors, gap = false)
             }
         }
 
@@ -500,6 +538,7 @@ internal fun WidgetLookRow(
                     style = TextStyle(color = colors.title, fontSize = 14.sp),
                     maxLines = 1,
                 )
+                RowNote(row, colors, gap = false)
                 if (!compact) {
                     row.formLabel?.let { label ->
                         Text(
@@ -569,6 +608,7 @@ internal fun WidgetLookRow(
                         )
                     }
                 }
+                RowNote(row, colors)
             }
             if (!last) {
                 Box(GlanceModifier.fillMaxWidth().height(1.dp).background(colors.line)) {}

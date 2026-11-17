@@ -24,6 +24,9 @@ internal object WidgetPreview {
             room = "204",
             remote = false,
             minutes = 90,
+            // Miniatura pokazuje też plakietkę notatki — inaczej nikt nie
+            // dowiedziałby się z podglądu, że widżet ją rysuje.
+            note = "Kolos",
         ),
         WidgetRow(
             start = "12:30",

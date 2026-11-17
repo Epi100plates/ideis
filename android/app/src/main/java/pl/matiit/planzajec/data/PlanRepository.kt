@@ -14,6 +14,7 @@ import pl.matiit.planzajec.data.model.TrybyDto
 import pl.matiit.planzajec.data.model.VersionDto
 import pl.matiit.planzajec.domain.AcademicYear
 import pl.matiit.planzajec.domain.PlanSelection
+import pl.matiit.planzajec.ui.theme.CustomColors
 
 /**
  * Czy plan w pamięci to ta sama treść, którą ma serwer?
@@ -106,6 +107,18 @@ class PlanRepository(
 
     fun selectStyle(styleId: String) {
         settings.styleId = styleId
+    }
+
+    /** Kolory motywu „Własny” — para domyślna, gdy użytkownik nic nie wybrał. */
+    fun currentCustomTheme(): CustomColors = CustomColors.normalize(
+        primary = settings.customPrimary,
+        background = settings.customBackground,
+    )
+
+    fun selectCustomTheme(colors: CustomColors) {
+        val normalized = CustomColors.normalize(colors.primary, colors.background)
+        settings.customPrimary = normalized.primary
+        settings.customBackground = normalized.background
     }
 
     /** Wersja, dla której użytkownik widział już ekran „Co nowego” (0 = nigdy). */

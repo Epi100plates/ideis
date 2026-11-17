@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import pl.matiit.planzajec.data.model.PlanDto
+import pl.matiit.planzajec.domain.ClassSlot
 import pl.matiit.planzajec.domain.Format
 import pl.matiit.planzajec.domain.ScheduleMapper
 import pl.matiit.planzajec.domain.ScheduleWindow
@@ -21,6 +22,11 @@ data class WidgetRow(
     val room: String?,
     val remote: Boolean,
     val minutes: Int,
+    /**
+     * Notatka dodana do tych zajęć („Kolos”, „Egzamin”) — ta sama, którą widać
+     * na kafelku w aplikacji i w wersji web. `null` = brak plakietki.
+     */
+    val note: String? = null,
 ) {
     /** „10:45–12:15”. */
     val timeRange: String get() = "$start–$end"
@@ -58,7 +64,7 @@ data class WidgetRow(
         get() = listOfNotNull(formLabel, placeLabel).joinToString(" · ").ifEmpty { null }
 
     fun fingerprint(): String =
-        "$start-$end:$subject:${form.orEmpty()}:${room.orEmpty()}:$remote:$minutes"
+        "$start-$end:$subject:${form.orEmpty()}:${room.orEmpty()}:$remote:$minutes:${note.orEmpty()}"
 }
 
 data class WidgetDay(val label: String, val rows: List<WidgetRow>)
@@ -107,6 +113,11 @@ object WidgetModelBuilder {
         nowMillis: Long,
         savedAtMillis: Long?,
         zone: ZoneId = ZoneId.systemDefault(),
+        /**
+         * Notatki z serwera (`GET /api/notes`, kopia z dysku): identyfikator
+         * zajęć → tekst. Brak wpisu oznacza brak plakietki na wierszu.
+         */
+        notes: Map<String, String> = emptyMap(),
     ): WidgetModel {
         val week = ScheduleWindow.nextDays(ScheduleMapper.toSlots(plan), today)
         return WidgetModel(
@@ -117,21 +128,23 @@ object WidgetModelBuilder {
             days = week.map { day ->
                 WidgetDay(
                     label = Format.dayTitle(day.date),
-                    rows = day.classes.map { slot ->
-                        WidgetRow(
-                            start = Format.clock(slot.start),
-                            end = Format.clock(slot.end),
-                            subject = slot.subject,
-                            form = slot.form,
-                            room = slot.room,
-                            remote = slot.isRemote,
-                            minutes = slot.durationMinutes,
-                        )
-                    },
+                    rows = day.classes.map { slot -> rowOf(slot, notes) },
                 )
             },
         )
     }
+
+    /** Wiersz widżetu z jednych zajęć (wspólny dla obu widżetów). */
+    fun rowOf(slot: ClassSlot, notes: Map<String, String> = emptyMap()): WidgetRow = WidgetRow(
+        start = Format.clock(slot.start),
+        end = Format.clock(slot.end),
+        subject = slot.subject,
+        form = slot.form,
+        room = slot.room,
+        remote = slot.isRemote,
+        minutes = slot.durationMinutes,
+        note = notes[slot.id]?.takeIf { it.isNotBlank() },
+    )
 
     /**
      * Czas pobrania planu z harmonogramu uczelni (a nie chwila sprawdzenia

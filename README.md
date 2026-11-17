@@ -2,8 +2,8 @@
 
 [![Licencja](https://img.shields.io/badge/licencja-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933.svg?logo=node.js&logoColor=white)](package.json)
-[![Testy](https://img.shields.io/badge/testy-132%2F132-2ea44f.svg)](scripts/self-test.js)
-[![Android](https://img.shields.io/badge/Android-1.10%20(16)-3DDC84.svg?logo=android&logoColor=white)](android/version.properties)
+[![Testy](https://img.shields.io/badge/testy-135%2F135-2ea44f.svg)](scripts/self-test.js)
+[![Android](https://img.shields.io/badge/Android-1.12%20(18)-3DDC84.svg?logo=android&logoColor=white)](android/version.properties)
 
 **Plan zajęć DSW w interfejsie natywnej aplikacji.** Przeglądarka (PWA) i telefon
 (APK) pokazują ten sam ekran — dzień, tydzień, miesiąc i semestr — a plan pobiera
@@ -27,18 +27,21 @@ bazy danych i bez ani jednej zależności z npm**.
 - **Materiały do zajęć** — pliki (PDF, Office, OpenDocument, RTF/CSV/TXT, obrazy,
   ZIP — do 25 MB) i linki, widoczne od razu dla wszystkich.
 - **Notatki na kafelkach** — „Kolos”, „Egzamin” albo własny tekst do 15 znaków,
-  kolor z motywu, edytowalne przez każdego. Notatka dotyczy **konkretnego
-  terminu** zajęć, nie przedmiotu.
-- **20 stylów** — ciemne, jasne i kolorowe (fiolet, róż, łączony), plus tryb auto.
+  plakietka jak szkło (podbarwienie akcentem), edytowalna przez każdego. Notatka
+  dotyczy **konkretnego terminu** zajęć, nie przedmiotu — widać ją też w widżetach.
+- **20 stylów + własny** — ciemne, jasne i kolorowe (fiolet, róż, łączony), tryb
+  auto, a w „Własnym” wybierasz dwa kolory: akcent i tło.
 - **PWA** — instalacja z przeglądarki, powłoka offline, własny pasek instalacji.
 - **APK** — aktualizacje z tego serwera (`/api/app/latest`), widżety na pulpit
-  (dzień/tydzień, kilka wyglądów), jasny i ciemny motyw.
+  (dzień/tydzień, kilka wyglądów), ten sam motyw, notatki i własne kolory.
 - **Licznik wejść** — web, PWA i APK, z rozbiciem na dni i godziny (`/licznik`).
 - **Zgłoszenia** — propozycje i błędy bez konta, moderacja tokenem (`/propozycje`).
 
 | Style (web) | Szczegóły zajęć i notatka (APK) |
 | --- | --- |
 | ![Style](docs/web-style-kolorowe.png) | ![Notatka](docs/android-note-editor.png) |
+| **Motyw „Własny” (web)** | **Widżety z notatkami (APK)** |
+| ![Motyw własny](docs/web-motywwlasny.png) | ![Widżety](docs/android-widget-notes.png) |
 
 ## Szybki start (serwer)
 
@@ -46,7 +49,7 @@ Wymagania: **Node.js ≥ 18** (nic więcej — brak `node_modules`).
 
 ```bash
 npm start     # http://localhost:3000
-npm test      # 132 testy własne (parser, API, notatki, limity, HTTP)
+npm test      # 135 testów własnych (parser, API, notatki, limity, HTTP)
 ```
 
 Konfiguracja idzie zmiennymi środowiskowymi (albo plikiem `.env`) — pełna lista
@@ -69,13 +72,13 @@ przebudowę kontenera. Wdrożenie na VPS: [`deploy/push.sh`](deploy/push.sh).
 ```bash
 cd android
 ./gradlew assembleDebug        # APK debug
-./gradlew testDebugUnitTest    # 251 testów JVM
+./gradlew testDebugUnitTest    # 272 testy JVM
 ./gradlew lintDebug
 ```
 
 Domyślne API to `https://ideis.mati-it.pl`; można podmienić przy budowaniu
 (`-Pplanzajec.apiBase=http://10.0.2.2:3311`). Wersja aplikacji leży w
-[`android/version.properties`](android/version.properties) (1.10 / 16), a wydanie
+[`android/version.properties`](android/version.properties) (1.12 / 18), a wydanie
 publikuje [`scripts/publish-apk.ps1`](scripts/publish-apk.ps1).
 
 ## API
@@ -112,7 +115,7 @@ gdy sieć zawiedzie.
 
 ```text
 server/      API, scraper, parser, cache, rejestr grup, notatki, materiały, licznik
-public/      PWA: widoki, style (20 motywów), arkusz Opcji, service worker
+public/      PWA: widoki, style (20 motywów + własny), arkusz Opcji, service worker
 android/     aplikacja Kotlin/Compose + widżety Glance (własne README)
 scripts/     self-test, publikacja APK, narzędzia diagnostyczne
 deploy/      push.sh, jednostki systemd, przykładowy nginx
@@ -124,8 +127,8 @@ tests/       fixture'y HTML z harmonogramów
 
 | Bramka | Jak uruchomić | Stan |
 | --- | --- | --- |
-| Testy serwera i webu | `npm test` | 132 / 132 |
-| Testy Androida | `cd android && ./gradlew testDebugUnitTest` | 251 / 251 |
+| Testy serwera i webu | `npm test` | 135 / 135 |
+| Testy Androida | `cd android && ./gradlew testDebugUnitTest` | 272 / 272 |
 | Lint Androida | `cd android && ./gradlew lintDebug` | bez błędów |
 
 `npm test` nie używa frameworka — to zwykły skrypt Node. Oprócz parsera i API

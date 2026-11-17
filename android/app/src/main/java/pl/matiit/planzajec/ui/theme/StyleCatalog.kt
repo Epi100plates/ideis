@@ -21,6 +21,7 @@ enum class StyleGroup(val label: String) {
     VISION_OS("visionOS"),
     CLASSIC("Klasyczne"),
     KOLOROWE("Kolorowe"),
+    WLASNY("Własny"),
 }
 
 data class StyleDef(
@@ -89,6 +90,12 @@ object StyleCatalog {
         StyleDef("pink-light", "Róż", "jasny · pudrowy róż", StyleGroup.KOLOROWE, false),
         StyleDef("mix-dark", "Połączony", "ciemny · fiolet przechodzący w róż", StyleGroup.KOLOROWE, true),
         StyleDef("mix-light", "Połączony", "jasny · fiolet z różem", StyleGroup.KOLOROWE, false),
+        /*
+         * Motyw „Własny” nie ma zaszytej palety — liczy ją `CustomTheme` z dwóch
+         * kolorów wybranych przez użytkownika (akcent + tło). `isDark` opisuje
+         * tylko domyślną parę; o tonacji decyduje kolor tła.
+         */
+        StyleDef("custom", "Własny", "twoje dwa kolory · akcent i tło", StyleGroup.WLASNY, true),
     )
 
     /** Stare identyfikatory z wersji web — migracja bez błędu. */
@@ -118,8 +125,8 @@ object StyleCatalog {
         }
     }
 
-    fun palette(id: String?, systemDark: Boolean): StylePalette =
-        paletteFor(resolve(id, systemDark))
+    fun palette(id: String?, systemDark: Boolean, custom: CustomColors = CustomColors.DEFAULT): StylePalette =
+        paletteFor(resolve(id, systemDark), custom)
 
     // --- palety -------------------------------------------------------------
 
@@ -322,7 +329,10 @@ object StyleCatalog {
     )
 
     /** Identyfikator motywu → paleta (motywy z wersji web trzymają się wzoru web). */
-    private fun paletteFor(id: String): StylePalette = when (id) {
+    private fun paletteFor(id: String, custom: CustomColors): StylePalette = when (id) {
+        // Motyw użytkownika: paletę liczy `CustomTheme` z jego dwóch kolorów.
+        "custom" -> CustomTheme.palette(custom)
+
         // Motywy aplikacji (grupa „Kolorowe”) — patrz wyżej.
         "violet-dark" -> violetDark
         "violet-light" -> violetLight
@@ -492,12 +502,13 @@ object StyleCatalog {
         else -> classicLight
     }
 
-    /** Kolejność i podpisy grup w menu stylu (jak w wersji web + „Kolorowe”). */
+    /** Kolejność i podpisy grup w menu stylu (jak w wersji web + „Kolorowe”, „Własny”). */
     val groups: List<Pair<StyleGroup, List<StyleDef>>> =
         listOf(
             StyleGroup.LIQUID_GLASS to styles.filter { it.group == StyleGroup.LIQUID_GLASS },
             StyleGroup.VISION_OS to styles.filter { it.group == StyleGroup.VISION_OS },
             StyleGroup.CLASSIC to styles.filter { it.group == StyleGroup.CLASSIC },
             StyleGroup.KOLOROWE to styles.filter { it.group == StyleGroup.KOLOROWE },
+            StyleGroup.WLASNY to styles.filter { it.group == StyleGroup.WLASNY },
         )
 }

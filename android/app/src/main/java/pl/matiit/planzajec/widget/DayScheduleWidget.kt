@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import pl.matiit.planzajec.MainActivity
 import pl.matiit.planzajec.R
 import pl.matiit.planzajec.data.PlanGraph
+import pl.matiit.planzajec.ui.theme.CustomColors
 
 /**
  * Widżet „Dzień” — pojedynczy dzień (dziś lub najbliższy z zajęciami).
@@ -44,7 +45,10 @@ class DayScheduleWidget : GlanceAppWidget() {
         val target = repository.currentTarget()
         val group = target.groupId
         val stored = withContext(Dispatchers.IO) { repository.cachedPlan(target) }
-        val styleId = PlanGraph.settings(context).styleId
+        val settings = PlanGraph.settings(context)
+        val styleId = settings.styleId
+        val custom = CustomColors.normalize(settings.customPrimary, settings.customBackground)
+        val notes = withContext(Dispatchers.IO) { PlanGraph.notes(context).cached() }
         val systemNight = WidgetNight.isNight(context)
 
         provideContent {
@@ -59,12 +63,17 @@ class DayScheduleWidget : GlanceAppWidget() {
                 nowMillis = System.currentTimeMillis(),
                 savedAtMillis = stored?.savedAtMillis,
                 zone = ZoneId.systemDefault(),
+                notes = state.widgetNotes(notes),
             )
             DayWidgetContent(
                 model = model,
                 look = state.widgetLook(),
                 // Styl ze stanu Glance — powód jak w widżecie tygodnia.
-                colors = WidgetTheme.colors(state.widgetStyle() ?: styleId, night),
+                colors = WidgetTheme.colors(
+                    styleId = state.widgetStyle() ?: styleId,
+                    night = night,
+                    custom = state.widgetCustomColors(custom),
+                ),
             )
         }
     }
@@ -75,7 +84,12 @@ class DayScheduleWidget : GlanceAppWidget() {
      */
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
         val night = WidgetNight.isNight(context)
-        val colors = WidgetTheme.colors(PlanGraph.settings(context).styleId, night)
+        val settings = PlanGraph.settings(context)
+        val colors = WidgetTheme.colors(
+            styleId = settings.styleId,
+            night = night,
+            custom = CustomColors.normalize(settings.customPrimary, settings.customBackground),
+        )
         provideContent {
             DayWidgetContent(
                 model = WidgetPreview.dayModel(),

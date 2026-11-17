@@ -13,7 +13,7 @@ class StyleCatalogTest {
     fun `kazdy styl ma unikalny identyfikator i czytelny podpis`() {
         val ids = StyleCatalog.styles.map { it.id }
 
-        assertEquals(20, ids.size)
+        assertEquals(21, ids.size)
         assertEquals(ids.size, ids.distinct().size)
         assertTrue(StyleCatalog.styles.all { it.label.isNotBlank() && it.hint.isNotBlank() })
     }
@@ -86,18 +86,21 @@ class StyleCatalogTest {
     }
 
     @Test
-    fun `menu stylu pokazuje cztery grupy — trzy z wersji web i kolorowe`() {
+    fun `menu stylu pokazuje piec grup — cztery z wersji web i motyw wlasny`() {
         val groups = StyleCatalog.groups
 
-        assertEquals(4, groups.size)
+        assertEquals(5, groups.size)
         assertEquals(StyleGroup.LIQUID_GLASS, groups[0].first)
         assertEquals(StyleGroup.VISION_OS, groups[1].first)
         assertEquals(StyleGroup.CLASSIC, groups[2].first)
         assertEquals(StyleGroup.KOLOROWE, groups[3].first)
+        assertEquals(StyleGroup.WLASNY, groups[4].first)
         assertEquals(6, groups[0].second.size)
         assertEquals(4, groups[1].second.size)
         assertEquals(4, groups[2].second.size)
         assertEquals(6, groups[3].second.size)
+        assertEquals(1, groups[4].second.size)
+        assertEquals("custom", groups[4].second.first().id)
     }
 
     @Test

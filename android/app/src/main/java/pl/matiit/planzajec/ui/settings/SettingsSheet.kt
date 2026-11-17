@@ -11,6 +11,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,10 +36,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,12 +56,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import pl.matiit.planzajec.R
 import pl.matiit.planzajec.data.model.GroupDto
 import pl.matiit.planzajec.data.model.SelectionItemDto
 import pl.matiit.planzajec.domain.AppCopy
+import pl.matiit.planzajec.domain.ColorHsv
 import pl.matiit.planzajec.domain.Format
+import pl.matiit.planzajec.domain.Hsv
 import pl.matiit.planzajec.domain.PlanSelection
 import pl.matiit.planzajec.domain.PlanWizard
 import pl.matiit.planzajec.ui.selection.AddGroupRow
@@ -67,8 +73,10 @@ import pl.matiit.planzajec.ui.selection.PlanPickerPanel
 import pl.matiit.planzajec.ui.selection.RadioMark
 import pl.matiit.planzajec.ui.selection.WizardActions
 import pl.matiit.planzajec.ui.selection.WizardContext
+import pl.matiit.planzajec.ui.theme.CustomColors
 import pl.matiit.planzajec.ui.theme.LocalStylePalette
 import pl.matiit.planzajec.ui.theme.StyleCatalog
+import pl.matiit.planzajec.ui.theme.StyleGroup
 import pl.matiit.planzajec.ui.update.UpdatesPage
 import pl.matiit.planzajec.update.UpdateState
 import pl.matiit.planzajec.widget.WidgetInstance
@@ -101,6 +109,8 @@ fun SettingsSheet(
     offline: Boolean,
     refreshing: Boolean,
     styleId: String,
+    /** Dwa kolory motywu „Własny” — podstawa edytora na stronie „Wygląd”. */
+    customTheme: CustomColors,
     updateState: UpdateState,
     canInstall: Boolean,
     initialPage: SettingsPage = SettingsPage.ROOT,
@@ -116,6 +126,8 @@ fun SettingsSheet(
     onRemoveGroup: (String) -> Unit,
     onAddGroups: (List<String>) -> Unit,
     onSelectStyle: (String) -> Unit,
+    /** Zmiana barw motywu „Własny”: (akcent, tło) w zapisie `#RRGGBB`. */
+    onCustomThemeChange: (String, String) -> Unit,
     onRefresh: () -> Unit,
     onCheckNow: () -> Unit,
     onDownloadAndInstall: () -> Unit,
@@ -222,8 +234,10 @@ fun SettingsSheet(
 
                     SettingsPage.LOOK -> LookPage(
                         styleId = styleId,
+                        customTheme = customTheme,
                         onBack = { page = SettingsPage.ROOT },
                         onSelectStyle = onSelectStyle,
+                        onCustomThemeChange = onCustomThemeChange,
                     )
 
                     SettingsPage.UPDATES -> UpdatesPage(
@@ -554,8 +568,10 @@ private fun AddPlanPage(
 @Composable
 private fun LookPage(
     styleId: String,
+    customTheme: CustomColors,
     onBack: () -> Unit,
     onSelectStyle: (String) -> Unit,
+    onCustomThemeChange: (String, String) -> Unit,
 ) {
     SettingsPageHeader(
         title = "Wygląd",
@@ -580,12 +596,196 @@ private fun LookPage(
                     label = style.label,
                     hint = style.hint,
                     selected = style.id == styleId,
-                    swatch = StyleCatalog.palette(style.id, style.isDark).accent,
+                    swatch = StyleCatalog.palette(style.id, style.isDark, customTheme).accent,
                     onClick = { onSelectStyle(style.id) },
                 )
             }
         }
         Spacer(Modifier.height(10.dp))
+    }
+
+    CustomThemeSection(colors = customTheme, onChange = onCustomThemeChange)
+}
+
+/**
+ * Edytor motywu „Własny”: dwa kolory (akcent i tło) wybierane suwakami
+ * barwy, nasycenia i jasności.
+ *
+ * Suwak zmienia **podgląd na żywo** (próbka w wierszu), a zapis idzie po
+ * puszczeniu palca (`onValueChangeFinished`) — inaczej każde drgnięcie suwaka
+ * zapisywałoby SharedPreferences i przerysowywało widżet.
+ */
+@Composable
+private fun CustomThemeSection(colors: CustomColors, onChange: (String, String) -> Unit) {
+    val palette = LocalStylePalette.current
+    Text(
+        text = StyleGroup.WLASNY.label,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.4.sp,
+        color = palette.textSoft,
+        modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+    )
+
+    var channel by rememberSaveable { mutableIntStateOf(0) }
+    val activeHex = if (channel == 0) colors.primary else colors.background
+    var draft by remember(activeHex) {
+        mutableStateOf(ColorHsv.fromHex(activeHex) ?: Hsv(hue = 265f, saturation = 0.65f, value = 0.95f))
+    }
+
+    fun commit(next: Hsv) {
+        draft = next
+        val hex = ColorHsv.toHex(next)
+        onChange(
+            if (channel == 0) hex else colors.primary,
+            if (channel == 1) hex else colors.background,
+        )
+    }
+
+    SettingsCard {
+        ColorChannelRow(
+            title = "Kolor główny",
+            hint = "akcent: przyciski, plakietki, aktywne elementy",
+            hex = if (channel == 0) ColorHsv.toHex(draft) else colors.primary,
+            selected = channel == 0,
+            onClick = { channel = 0 },
+        )
+        SettingsDivider()
+        ColorChannelRow(
+            title = "Kolor tła",
+            hint = "o jego jasności decyduje cały motyw",
+            hex = if (channel == 1) ColorHsv.toHex(draft) else colors.background,
+            selected = channel == 1,
+            onClick = { channel = 1 },
+        )
+    }
+
+    Spacer(Modifier.height(10.dp))
+
+    SettingsCard {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            HsvSlider(
+                label = "Barwa",
+                value = draft.hue,
+                range = 0f..360f,
+                display = "${draft.hue.roundToInt()}°",
+                onValueChange = { draft = draft.clamped().copy(hue = it) },
+                onCommit = { commit(draft) },
+            )
+            HsvSlider(
+                label = "Nasycenie",
+                value = draft.saturation,
+                range = 0f..1f,
+                display = "${(draft.saturation * 100).roundToInt()}%",
+                onValueChange = { draft = draft.clamped().copy(saturation = it) },
+                onCommit = { commit(draft) },
+            )
+            HsvSlider(
+                label = "Jasność",
+                value = draft.value,
+                range = 0.05f..1f,
+                display = "${(draft.value * 100).roundToInt()}%",
+                onValueChange = { draft = draft.clamped().copy(value = it) },
+                onCommit = { commit(draft) },
+            )
+        }
+    }
+
+    Spacer(Modifier.height(8.dp))
+    Text(
+        text = "Motyw „Własny” działa po wybraniu go z listy powyżej. Widżety na " +
+            "pulpicie biorą te same dwa kolory, więc nie trzeba ich dodawać od nowa.",
+        style = MaterialTheme.typography.labelSmall,
+        color = palette.textSoft,
+    )
+}
+
+/** Wiersz wyboru jednego z dwóch kolorów motywu: nazwa, próbka i hex. */
+@Composable
+private fun ColorChannelRow(
+    title: String,
+    hint: String,
+    hex: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val palette = LocalStylePalette.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = palette.text,
+            )
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.labelSmall,
+                color = palette.textSoft,
+            )
+        }
+        Text(
+            text = hex.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = palette.textSoft,
+        )
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(Color(android.graphics.Color.parseColor(hex)))
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) palette.accent else palette.edge,
+                    shape = CircleShape,
+                ),
+        )
+        RadioMark(selected = selected)
+    }
+}
+
+/** Jeden suwak HSV z podpisem i wartością po prawej. */
+@Composable
+private fun HsvSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    display: String,
+    onValueChange: (Float) -> Unit,
+    onCommit: () -> Unit,
+) {
+    val palette = LocalStylePalette.current
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelMedium,
+                color = palette.textSoft,
+            )
+            Text(
+                text = display,
+                style = MaterialTheme.typography.labelMedium,
+                color = palette.text,
+            )
+        }
+        Slider(
+            value = value.coerceIn(range),
+            onValueChange = onValueChange,
+            onValueChangeFinished = onCommit,
+            valueRange = range,
+        )
     }
 }
 

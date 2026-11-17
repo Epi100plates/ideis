@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import java.io.IOException
+import pl.matiit.planzajec.data.local.FileNotesStore
 import pl.matiit.planzajec.data.local.FilePlanStorage
 import pl.matiit.planzajec.data.local.SharedPrefsSettings
 import pl.matiit.planzajec.data.remote.HttpAttachmentsRemote
@@ -69,7 +70,11 @@ object PlanGraph {
     fun notes(context: Context): NotesRepository {
         notes?.let { return it }
         return synchronized(this) {
-            notes ?: NotesRepository(HttpNotesRemote()).also { notes = it }
+            notes ?: NotesRepository(
+                remote = HttpNotesRemote(),
+                // Kopia na dysku: widżet czyta notatki bez sieci i bez aplikacji.
+                store = FileNotesStore(context.applicationContext),
+            ).also { notes = it }
         }
     }
 
