@@ -1,0 +1,19 @@
+node_modules/
+.cache/
+.cache-test/
+out/
+attach-test*
+*.log
+.env
+.DS_Store
+tunnel.env
+# Wydania APK i scratch z debugowania UI — zostają lokalnie, na serwer idą scp.
+releases/
+.tmp/
+
+# Fork APK: artefakty Gradle i lokalne ścieżki SDK — nie commitujemy.
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties

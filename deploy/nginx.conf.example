@@ -1,0 +1,85 @@
+# Konfiguracja nginx dla planu zajęć z wyborem kierunku (reverse proxy + HTTPS).
+# Na produkcji aplikację wystawia cloudflared — ten plik jest dla instalacji
+# bez tunelu (własny serwer z nginx i certbotem).
+#
+# 1. Podmień ideis.example.com na własną domenę.
+# 2. Włącz:  ln -s /etc/nginx/sites-available/plany-wybor /etc/nginx/sites-enabled/
+# 3. Sprawdź: nginx -t && systemctl reload nginx
+# 4. Certyfikat: certbot --nginx -d ideis.example.com
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ideis.example.com;
+
+    # Certbot (jeśli używasz --webroot)
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ideis.example.com;
+
+    # Ścieżki uzupełni certbot
+    # ssl_certificate     /etc/letsencrypt/live/ideis.example.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/ideis.example.com/privkey.pem;
+
+    # Kompresja
+    gzip on;
+    gzip_types text/css application/javascript application/json text/calendar text/csv image/svg+xml;
+    gzip_min_length 512;
+
+    client_max_body_size 1m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    60s;
+    }
+
+    # Pliki statyczne — mogą być cache'owane agresywniej
+    location ~* \.(css|js|svg|png|ico|woff2)$ {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_set_header Host $host;
+        expires 1h;
+        add_header Cache-Control "public";
+    }
+
+    # Service worker i manifest MUSZĄ być zawsze świeże,
+    # inaczej PWA nie zaktualizuje się po wdrożeniu zmian.
+    location = /sw.js {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
+    location = /manifest.webmanifest {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache";
+        types { } default_type application/manifest+json;
+    }
+
+    # Plan zawsze świeży
+    location /api/ {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        add_header Cache-Control "no-store";
+    }
+}

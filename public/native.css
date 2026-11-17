@@ -1,0 +1,2677 @@
+/* ============================================================================
+   Plan zajęć — interfejs natywnej aplikacji Android (Jetpack Compose → CSS).
+   Fork wersji web: cały wygląd pochodzi ze źródeł `android/` w tym repo.
+   1 dp = 1 px CSS; skala typografii to Material 3 w px (sp = px) razy `--fs`
+   (gęstość tekstu: 1 = nominał Material 3, mniej = ciaśniejsza czcionka).
+   Palety i role kolorów ustawia app.js (StyleCatalog.kt → :root).
+   ========================================================================== */
+
+/* Roboto (Apache 2.0) — podzbiory zmiennej czcionki z Google Fonts.
+   `font-weight: 100 900` daje prawdziwe wagi 500/600/700, tak jak Roboto
+   Medium/Bold w natywnej aplikacji; latin-ext niesie polskie znaki. */
+@font-face {
+  font-family: 'Roboto';
+  src: url('/fonts/Roboto-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('/fonts/Roboto-latin-ext.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  --font: 'Roboto', 'Helvetica Neue', Arial, system-ui, sans-serif;
+
+  /* Skala czcionki: każda rola Material 3 jest mnożona przez tę liczbę.
+     1 = nominał z `android/` (16 sp → 16 px), 0.92 = tekst o 8% mniejszy.
+     Wartości w `calc(Npx * var(--fs))` zostają w px, więc układ (odstępy,
+     wysokości wierszy, promienie) nie zmienia się razem z czcionką. */
+  --fs: 0.92;
+
+  /* Kolory podstawione przez app.js; poniżej awaryjne wartości Liquid Glass 2. */
+  --page: #04070c;
+  --text: #ffffff;
+  --text-soft: #c9d8e8;
+  --accent: #dcecff;
+  --accent-rgb: 220, 236, 255;
+  --accent-on: #04121e;
+  --accent-soft: rgba(170, 215, 255, 0.1);
+  --surface: #0a1622;
+  --surface-rgb: 10, 22, 34;
+  --surface-variant: #0a1622;
+  --sv-rgb: 10, 22, 34;
+  --pc-rgb: 20, 40, 58;
+  --outline: rgba(190, 220, 255, 0.16);
+  --outline-rgb: 190, 220, 255;
+  --outline-variant: rgba(190, 220, 255, 0.08);
+  --outline-variant-rgb: 190, 220, 255;
+  --error: #ffb4ab;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+  --radius: 28px;
+
+  /* Sprężyna 0.68 / 420 (TileStyle.LIQUID_DAMPING) jako easing CSS —
+     podświetlenie kafelków dopływa z lekkim przeregulowaniem (5,4%). */
+  --spring: linear(0 0%, 0.0643 4.2%, 0.2124 8.3%, 0.3921 12.5%, 0.5692 16.7%,
+    0.7239 20.8%, 0.8471 25%, 0.9374 29.2%, 0.9977 33.3%, 1.0333 37.5%,
+    1.0502 41.7%, 1.0542 45.8%, 1.0502 50%, 1.0419 54.2%, 1.0321 58.3%,
+    1.0226 62.5%, 1.0143 66.7%, 1.0078 70.8%, 1.003 75%, 0.9999 79.2%,
+    0.9981 83.3%, 0.9972 87.5%, 0.9971 91.7%, 0.9973 95.8%, 1 100%);
+
+  --hour-height: 60px;
+  --day-width: 112px;
+  --hours-width: 44px;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  height: 100%;
+  background-color: var(--page);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: var(--page);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+[hidden] { display: none !important; }
+
+button, input { font-family: inherit; }
+button { color: inherit; }
+:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.85); outline-offset: 2px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px;
+  padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* --- typografia Material 3 ------------------------------------------------ */
+
+.t-title-large { font-size: calc(22px * var(--fs)); line-height: 28px; font-weight: 400; letter-spacing: 0; }
+.t-title-medium { font-size: calc(16px * var(--fs)); line-height: 24px; font-weight: 500; letter-spacing: .15px; }
+.t-title-small { font-size: calc(14px * var(--fs)); line-height: 20px; font-weight: 500; letter-spacing: .1px; }
+.t-body-large { font-size: calc(16px * var(--fs)); line-height: 24px; font-weight: 400; letter-spacing: .5px; }
+.t-body-medium { font-size: calc(14px * var(--fs)); line-height: 20px; font-weight: 400; letter-spacing: .25px; }
+.t-body-small { font-size: calc(12px * var(--fs)); line-height: 16px; font-weight: 400; letter-spacing: .4px; }
+.t-label-large { font-size: calc(14px * var(--fs)); line-height: 20px; font-weight: 500; letter-spacing: .1px; }
+.t-label-medium { font-size: calc(12px * var(--fs)); line-height: 16px; font-weight: 500; letter-spacing: .5px; }
+.t-label-small { font-size: calc(11px * var(--fs)); line-height: 16px; font-weight: 500; letter-spacing: .5px; }
+.t-headline-small { font-size: calc(24px * var(--fs)); line-height: 32px; font-weight: 400; letter-spacing: 0; }
+.t-headline-large { font-size: calc(32px * var(--fs)); line-height: 40px; font-weight: 400; letter-spacing: 0; }
+
+/* --- tło aurora ----------------------------------------------------------- */
+
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--page);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+/* --- układ główny --------------------------------------------------------- */
+
+.app,
+.welcome {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  height: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Kompaktowy nagłówek (zamiast TopAppBar 64 dp) ----------------------- */
+
+.topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Natywna aplikacja trzyma tu ~48 dp: tytuł 22/28 + grupa 11/16 i 2 dp
+     odstępu. Bez paska statusu — ten sam wybór co w APK. */
+  padding: calc(env(safe-area-inset-top, 0px) + 2px) 4px 0 20px;
+}
+
+.topbar-title { flex: 1 1 auto; min-width: 0; padding: 2px 0; }
+
+.topbar-title h1 {
+  margin: 0;
+  font-size: calc(22px * var(--fs));
+  line-height: 28px;
+  font-weight: 400;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-group {
+  margin: 0;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-actions { flex: 0 0 auto; display: flex; align-items: center; }
+
+.text-btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: .1px;
+  min-height: 40px;
+  padding: 10px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.text-btn:active { background: rgba(var(--accent-rgb), 0.12); }
+.text-btn:disabled { color: var(--text-soft); opacity: .6; }
+/* „Pobierz” i „Otwórz” w materiałach to zwykłe linki — bez podkreślenia. */
+a.text-btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+
+/* --- plakietki (arkusz szczegółów, opcje) -------------------------------- */
+
+.pill {
+  display: inline-block;
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-variant);
+  color: var(--text);
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+
+.pill-error { background: var(--error-container); color: var(--on-error-container); }
+.refresh-line {
+  flex: 0 0 auto;
+  height: 2px;
+  background: rgba(var(--accent-rgb), 0.22);
+  overflow: hidden;
+}
+.refresh-line span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  animation: indeterminate 1.1s linear infinite;
+}
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.pull-indicator {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 0;
+  overflow: visible;
+}
+.pull-indicator span {
+  display: block;
+  width: 26px;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid rgba(var(--accent-rgb), 0.28);
+  border-top-color: var(--accent);
+  transform: scale(.4) rotate(0deg);
+  transition: transform .05s linear;
+}
+
+/* --- widoki --------------------------------------------------------------- */
+
+.viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* Kotwica dla animacji przejść: odjeżdżająca kopia starego widoku leży nad
+     nowym, więc w trakcie przesuwania po żadnej stronie nie ma pustego tła. */
+  position: relative;
+}
+.viewport.view-week,
+.viewport.view-month { overflow: hidden; }
+
+.viewport::-webkit-scrollbar { width: 0; height: 0; }
+
+/* Natywna aplikacja nie pokazuje pasków przewijania. */
+.month-list,
+.sheet-body,
+.week-scroll,
+.welcome { scrollbar-width: none; }
+.month-list::-webkit-scrollbar,
+.sheet-body::-webkit-scrollbar,
+.week-scroll::-webkit-scrollbar,
+.welcome::-webkit-scrollbar { width: 0; height: 0; }
+
+/* --- dolne kafelki widoków ------------------------------------------------ */
+
+.bottom-bar {
+  flex: 0 0 auto;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+}
+
+.tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 24px;
+  background: rgba(var(--surface-rgb), 0.94);
+  /* Obramowanie rysowane do wewnątrz, jak BorderStroke w Compose (nie zmienia 1dp wymiaru). */
+  box-shadow: inset 0 0 0 1px rgba(var(--outline-variant-rgb), 0.55), 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* Podświetlenie wybranego kafelka — sprężyna 0.68 / 420, jak w TileHighlight. */
+.tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 0;
+  border-radius: 20px;
+  background: rgba(var(--accent-rgb), 0.14);
+  transform: translateX(0);
+  transition: transform .46s var(--spring), width .46s var(--spring);
+  pointer-events: none;
+}
+.tab-indicator.no-anim { transition: none; }
+
+.tabs button {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  cursor: pointer;
+  /* Kolor 220 ms, „nabrzmienie” sprężyną (TileStyle.SELECTED_SCALE = 1.06). */
+  transform: scale(1);
+  transition: color .22s ease, transform .46s var(--spring);
+}
+
+.tabs button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tabs button[aria-selected="true"] {
+  color: var(--accent);
+  font-weight: 600;
+  transform: scale(1.06);
+}
+
+/* Piąty kafelek: „Opcje” — nie jest widokiem, więc nie dostaje aria-selected. */
+.tabs .tab-options { color: var(--text-soft); }
+
+.tab-badge {
+  position: absolute;
+  top: 5px;
+  left: calc(50% + 8px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--surface-rgb), 0.95);
+}
+
+/* --- ekran powitalny ------------------------------------------------------ */
+
+.welcome {
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  /* Po wyborze kroku `scrollIntoView` podsuwa nowy krok — z tym zapasem
+     tytuł i wydział zostają nad nim widoczne. */
+  scroll-padding-top: calc(84px + env(safe-area-inset-top, 0px));
+}
+
+.welcome-title {
+  margin: 0;
+  font-size: calc(30px * var(--fs));
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* Wydział jest stały — jedna cicha linia zamiast akapitu wstępu. */
+.welcome-faculty {
+  margin: 2px 0 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .3px;
+  color: var(--text-soft);
+}
+
+.welcome-manual {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Ręczne wpisanie numeru grupy — schowane za linkiem na dole ekranu. */
+.welcome-more {
+  display: block;
+  margin: 18px 0 0;
+  padding-left: 0;
+  padding-right: 0;
+  font-size: calc(13px * var(--fs));
+  color: var(--text-soft);
+  text-align: left;
+}
+
+/* --- przyciski (M3) ------------------------------------------------------- */
+
+.btn-filled {
+  appearance: none;
+  border: 0;
+  border-radius: 20px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: .1px;
+  padding: 0 24px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.btn-filled:disabled { opacity: .38; cursor: default; }
+
+.btn-tonal {
+  appearance: none;
+  border: 0;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: .1px;
+  padding: 0 16px;
+  min-height: 40px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-tonal:disabled { opacity: .38; cursor: default; }
+
+/* Pole tekstowe (OutlinedTextField) */
+.field {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field input {
+  width: 100%;
+  height: 56px;
+  padding: 18px 16px 0;
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  letter-spacing: .5px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  appearance: none;
+  outline: none;
+}
+
+.field span {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  background: var(--page);
+  color: var(--text-soft);
+  font-size: calc(16px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .5px;
+  pointer-events: none;
+  transition: top .12s ease, font-size .12s ease;
+}
+
+.field input:focus { border-color: var(--accent); }
+.field input:focus + span,
+.field input:not(:placeholder-shown) + span {
+  top: 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .4px;
+  color: var(--accent);
+}
+
+/* --- lista radiowa (grupy, style) ---------------------------------------- */
+
+.radio-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Wciśnięcie to tylko podpowiedź „tu kliknąłeś” — zaznaczenie pokazuje
+   kółko, żeby nie mylić chwilowego tła z wybraną opcją. */
+.radio-row:active { background: rgba(var(--accent-rgb), 0.05); }
+
+.radio-mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0 14px;
+  border: 2px solid var(--text-soft);
+  border-radius: 50%;
+  position: relative;
+}
+/* Kropka w kółku — jedyny wskaźnik zaznaczenia (jak RadioButton w APK). */
+.radio-mark::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: scale(0);
+  transition: transform .14s ease-out;
+}
+.radio-row[aria-checked="true"] .radio-mark { border-color: var(--accent); }
+.radio-row[aria-checked="true"] .radio-mark::after { transform: scale(1); }
+.radio-row[aria-checked="true"] .radio-title { font-weight: 500; }
+.radio-row[aria-pressed="true"] { background: rgba(var(--accent-rgb), 0.1); }
+.radio-row[aria-pressed="true"] .radio-mark { border-color: var(--accent); }
+.radio-row[aria-pressed="true"] .radio-mark::after { transform: scale(1); }
+.radio-row[disabled] { cursor: not-allowed; opacity: .55; }
+
+.radio-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.radio-title {
+  display: -webkit-box;
+  margin: 0;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: .25px;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.radio-sub {
+  display: block;
+  margin: 0;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+
+/* --- widok Dnia ---------------------------------------------------------- */
+
+.day-view { display: flex; flex-direction: column; min-height: 100%; }
+
+.week-strip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 2px 8px;
+}
+
+/* Strzałki tygodnia — małe okrągłe przyciski po bokach paska (WeekArrow). */
+.strip-arrow {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--text-soft);
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Pasek dni: ten sam TileBar co dolna nawigacja, wariant Subtle
+   (tło 34%, ramka 24%, bez cienia) — TileBarStyle.Subtle.
+   Promienie z APK 1.8: pasek 16 px (subtleRadius + 6), kafelek dnia 10 px
+   (`TileStyle.subtleRadius`) — dzień czyta się jak prostokąt z miękkimi rogami
+   i mieści dwie linie tekstu oraz kropki przedmiotów. */
+.strip-bar {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 16px;
+  background: rgba(var(--surface-rgb), 0.34);
+  box-shadow: inset 0 0 0 1px rgba(var(--outline-variant-rgb), 0.24);
+}
+
+.strip-highlight {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  width: 0;
+  border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.20);
+  /* Lekki obrys zaznaczonego dnia: przesuwa się razem z podświetleniem, więc
+     nie zostaje na starym kafelku w trakcie animacji zmiany dnia. */
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.48);
+  transform: translateX(0);
+  /* Ruch robi `positionStripHighlight()` na Web Animations, nie przejście CSS:
+     pasek dni jest przerysowywany od zera, a nowy węzeł nie ma „poprzedniego”
+     stylu — przejście startowało wtedy z lewej krawędzi (v14). */
+  pointer-events: none;
+}
+
+.strip-day {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.strip-weekday {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  transition: color .22s ease;
+}
+
+.strip-date {
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: .1px;
+  color: var(--text);
+  transition: color .22s ease;
+}
+
+.strip-day.is-selected .strip-weekday { color: var(--accent); }
+.strip-day.is-selected .strip-date,
+.strip-day.is-today .strip-date {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.strip-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  height: 6px;
+}
+
+.dot {
+  display: block;
+  border-radius: 50%;
+  width: 4px;
+  height: 4px;
+}
+
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 2px 16px 32px;
+}
+
+.agenda-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 0;
+}
+
+.agenda-head-main {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agenda-weekday {
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: .15px;
+  white-space: nowrap;
+}
+
+.agenda-date {
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-summary {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.agenda-count {
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+
+.agenda-meta {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+/* Karta zajęć (ClassCard).
+   Trwające zajęcia zaznacza cienki obrys akcentu (55%) i ledwo widoczne
+   podbarwienie środka (akcent 8% na zwykłym tle karty) — wcześniej cała karta
+   była wypełniona akcentem, co przykrywało treść (APK 1.9). */
+.class-card {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 20px;
+  background: rgba(var(--sv-rgb), 0.30);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  /* Prawa krawędź notatki ma się schować w zaokrągleniu karty (jak w APK). */
+  overflow: hidden;
+}
+.class-card.is-ongoing {
+  background:
+    linear-gradient(rgba(var(--accent-rgb), 0.08), rgba(var(--accent-rgb), 0.08)),
+    rgba(var(--sv-rgb), 0.30);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.55);
+}
+.class-card:active { filter: brightness(1.15); }
+
+/* Plakietka notatki („Kolos”, „Egzamin”) — jak w projekcie z APK 1.10.
+   Kolor bierze się z motywu (`--accent` na `--accent-on`), więc notatka jest
+   widoczna w każdym z 20 motywów, jasnym i ciemnym. Plakietka jest **częścią
+   układu** karty: nazwa przedmiotu zwęża się tylko o tyle, ile naprawdę zajmuje
+   tekst, a szerokość jest ograniczona do 35% karty.
+
+   Lewy brzeg jest **ścięty ukośnie** (chorągiewka przy prawej krawędzi), a nie
+   zaokrąglony. Kąt zależy od wysokości karty, a CSS nie zna wysokości
+   w `clip-path` — dlatego `--note-slant` i `--note-pad` wylicza `fitNotes()`
+   z realnego rozmiaru. Wartości poniżej to stan przed pierwszym pomiarem. */
+.class-card.has-note { padding-right: 0; }
+
+.note-badge {
+  --note-slant: 38px;
+  --note-pad: 31px;
+  align-self: stretch;
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 35%;
+  margin: -12px 0 -12px 8px;
+  padding: 0 10px 0 var(--note-pad);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%, var(--note-slant) 0);
+  background: var(--accent);
+  color: var(--accent-on);
+  overflow: hidden;
+}
+
+.note-badge-text {
+  display: block;
+  font-size: calc(20px * var(--fs));
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.class-time {
+  flex: 0 0 auto;
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+}
+
+.class-time-start {
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: .15px;
+}
+
+.class-time-end {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+.class-bar {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 40px;
+  border-radius: 2px;
+}
+
+.class-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.class-subject {
+  display: block;
+  margin: 0;
+  /* APK 1.11: nazwa przedmiotu zawsze w jednej linii, a rozmiar dopasowuje
+     `fitSubjects()` w app.js (16 → 10 px, krok 0,5 px, jak `TextAutoSize`). */
+  font-size: calc(16px * var(--fs));
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: .25px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.class-meta {
+  display: block;
+  margin: 0;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* „teraz” nie jest już osobną plakietką: stoi na początku linii metadanych
+   i świeci akcentem, a obrys karty mówi, że zajęcia trwają (APK 1.11).
+   Plakietka „dziś” zniknęła — dzień jest w nagłówku agendy. */
+.class-meta.is-ongoing {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Spinacz materiałów (AttachmentMark) — 16 px na karcie dnia, 14 px w wierszu
+   miesiąca; ten sam rysunek co `ic_attachment` w APK. */
+.attachment-mark {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  fill: none;
+  stroke: var(--text-soft);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.agenda-jump {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.agenda-jump .text-btn { padding: 10px 8px; }
+
+/* Wiersz kompaktowy (CompactClassRow) — miesiąc, semestr */
+.class-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(var(--sv-rgb), 0.26);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.class-row:active { filter: brightness(1.15); }
+
+.class-row .class-time { width: 46px; }
+.class-row .class-time-start { font-size: calc(14px * var(--fs)); line-height: 20px; font-weight: 600; letter-spacing: .1px; }
+.class-row .class-bar { width: 3px; height: 30px; }
+.class-row .class-main { margin-left: 10px; }
+.class-row .class-subject { font-size: calc(14px * var(--fs)); line-height: 18px; letter-spacing: .2px; }
+
+.class-room {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  max-width: 84px;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.class-room.is-remote { color: var(--tertiary, var(--accent)); }
+
+/* Nagłówek dnia (DaySectionHeader) */
+.day-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 2px;
+}
+
+.day-head-title {
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: .15px;
+}
+
+.day-head-count {
+  margin-left: auto;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+/* Pusty stan / błąd / ładowanie */
+.empty-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 12px;
+  gap: 0;
+}
+.empty-title {
+  margin: 0;
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: .15px;
+}
+.empty-body {
+  margin: 6px 0 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+}
+.empty-msg .text-btn { margin-top: 10px; }
+
+.block-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 32px;
+  text-align: center;
+  gap: 8px;
+}
+.block-center .t-title-medium { margin-top: 4px; }
+
+.load-bar {
+  width: 60%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(var(--accent-rgb), 0.22);
+  overflow: hidden;
+  display: block;
+}
+.load-bar span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  animation: indeterminate 1.1s linear infinite;
+}
+
+/* --- widok Tygodnia ------------------------------------------------------ */
+
+.week-view { display: flex; flex-direction: column; height: 100%; }
+
+.period-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+}
+
+.period-arrow {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: calc(22px * var(--fs));
+  line-height: 28px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.period-center {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.period-title {
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: .15px;
+  text-align: center;
+}
+.period-sub {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+.period-today {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.week-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.week-canvas { position: relative; }
+
+.week-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  background: rgba(var(--page-rgb), 0.92);
+}
+
+.week-head-spacer { flex: 0 0 var(--hours-width); width: var(--hours-width); }
+
+.week-head-day {
+  flex: 0 0 var(--day-width);
+  width: var(--day-width);
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.week-head-weekday {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+.week-head-date {
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+}
+.week-head-date.is-today { color: var(--accent); font-weight: 700; }
+
+.week-body { display: flex; position: relative; }
+
+.hour-labels {
+  flex: 0 0 var(--hours-width);
+  width: var(--hours-width);
+  position: relative;
+}
+
+.hour-label {
+  position: absolute;
+  left: 0;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  transform: translateY(-6px);
+}
+
+.week-day {
+  flex: 0 0 var(--day-width);
+  width: var(--day-width);
+  position: relative;
+  border-left: 0;
+}
+.week-day.is-weekend { background: rgba(var(--sv-rgb), 0.10); }
+
+.week-hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--outline-variant);
+}
+
+.week-block {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 3px 4px;
+  border-radius: 8px;
+  background: rgba(var(--sv-rgb), 0.55);
+  border: 1px solid;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.week-block:active { filter: brightness(1.2); }
+
+.week-block-time {
+  font-size: calc(9px * var(--fs));
+  line-height: 12px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+.week-block-subject {
+  font-size: calc(9.5px * var(--fs));
+  line-height: 12.5px;
+  font-weight: 500;
+  letter-spacing: .2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* --- widok Miesiąca ------------------------------------------------------ */
+
+.month-view { display: flex; flex-direction: column; height: 100%; }
+.month-nav { flex: 0 0 auto; padding: 2px 8px; display: flex; align-items: center; }
+.month-nav .period-center { align-items: center; }
+
+.month-grid { flex: 0 0 auto; padding: 0 12px; }
+
+.month-grid-weekdays { display: flex; }
+.month-grid-weekdays span {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+.month-grid-spacer { height: 4px; }
+
+.month-week { display: flex; }
+
+.day-cell-wrap { flex: 1 1 0; min-width: 0; }
+
+.day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  margin: 2px;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(var(--surface-rgb), 0.10);
+  color: var(--text);
+  cursor: pointer;
+}
+.day-cell.has-classes { background: rgba(var(--sv-rgb), 0.22); }
+.day-cell.is-selected { background: var(--accent-soft); }
+.day-cell.is-today { box-shadow: inset 0 0 0 1px var(--accent); }
+
+.day-cell-date {
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: .5px;
+}
+.day-cell.is-today .day-cell-date,
+.day-cell.is-selected .day-cell-date { font-weight: 600; }
+
+.day-cell-dots { display: flex; gap: 2px; margin-top: 3px; }
+.day-cell-dots .dot { width: 5px; height: 5px; }
+
+.month-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 16px 32px;
+}
+
+/* --- widok Semestru ----------------------------------------------------- */
+
+.semester { display: flex; flex-direction: column; gap: 10px; padding: 4px 16px 32px; }
+
+.semester-card {
+  border-radius: 18px;
+  background: rgba(var(--sv-rgb), 0.20);
+  padding: 10px 12px;
+}
+
+.semester-card-head { display: flex; align-items: center; }
+
+.semester-month {
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: .15px;
+}
+
+.semester-count {
+  margin-left: auto;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+.semester-card .month-grid { padding: 0; margin-top: 6px; }
+
+/* --- ModalBottomSheet --------------------------------------------------- */
+
+.sheet-scrim,
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.32);
+  animation: fade-in .18s ease;
+}
+
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 28px 28px 0 0;
+  background: var(--surface);
+  color: var(--text);
+  animation: sheet-up .24s cubic-bezier(.2, .8, .2, 1);
+  box-shadow: 0 -1px 0 var(--outline-variant);
+}
+
+@keyframes sheet-up { from { transform: translateY(16px); opacity: .6 } to { transform: none; opacity: 1 } }
+
+.sheet-grab {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 4px;
+  margin: 22px auto 0;
+  border-radius: 2px;
+  background: var(--text-soft);
+  opacity: .4;
+}
+
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.sheet-body.no-scroll { overflow: hidden; }
+
+/* --- „Co nowego” (WhatsNewSheet, APK 1.12) ------------------------------
+   Arkusz pokazywany raz na wydanie, po aktualizacji. Treść siedzi w app.js
+   (`RELEASE_NOTES`), więc działa bez sieci i zawsze pokazuje to samo. */
+
+.sheet-title {
+  margin: 0;
+  font-size: calc(22px * var(--fs));
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.sheet-sub {
+  display: block;
+  margin: 2px 0 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+}
+
+.whats-new-release { margin-top: 16px; }
+
+/* Nagłówek wydania („Zmiany, zmiany, zmiany...”) — jedna linia nad listą. */
+.whats-new-title {
+  margin: 4px 0 0;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: .1px;
+  color: var(--text);
+}
+
+.whats-new-list li strong { font-weight: 700; }
+
+.whats-new-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.whats-new-version {
+  display: block;
+  margin: 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  color: var(--accent);
+}
+
+.whats-new-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Kropka zamiast „•”: wyrównuje się z pierwszą linią tekstu, jak w arkuszu
+   natywnym (`Spacer` + `CircleShape` w WhatsNewSheet.kt). */
+.whats-new-list li {
+  position: relative;
+  padding-left: 15px;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  letter-spacing: .25px;
+}
+
+.whats-new-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.whats-new-ok { width: 100%; margin-top: 20px; }
+
+/* --- panel ustawień (SettingsSheet) --------------------------------------
+   Dwa poziomy, jak w APK 1.7: spis treści i strony tematyczne (Plan, Wygląd,
+   Aktualizacje, Grupa). Wspólne klocki: karta o zaokrągleniu 20 px z 1 px
+   ramki oraz wiersz o wysokości co najmniej 56 px — wygodny dla palca. */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  /* Kafelki panelu rozsuwamy o 10 px — tyle mają `Spacer(10.dp)` w APK.
+     Wcześniej karty stykały się ramkami i wyglądały jak jedna, długa lista. */
+  gap: 10px;
+  /* Wejście głębiej wjeżdża z prawej (AnimatedContent 220 ms w APK). */
+  animation: settings-in .22s cubic-bezier(.2, .8, .2, 1) both;
+}
+.settings-page.is-back { animation-name: settings-back-in; }
+/* Przerysowanie treści (np. nowe wydanie APK, zmiana planu) nie jest nawigacją —
+   strona nie może się wtedy przesuwać. Animację dostają tylko przejścia
+   między stronami panelu (`renderSettings` z `direction`). */
+.settings-page.is-still { animation: none; }
+
+@keyframes settings-in {
+  from { opacity: 0; transform: translateX(20%); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes settings-back-in {
+  from { opacity: 0; transform: translateX(-20%); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-page { animation: none; }
+}
+
+.settings-card {
+  border-radius: 20px;
+  border: 1px solid rgba(var(--outline-variant-rgb), 0.5);
+  background: rgba(var(--surface-rgb), 0.55);
+  overflow: hidden;
+}
+
+.settings-divider {
+  height: 1px;
+  margin: 0 16px;
+  background: rgba(var(--outline-variant-rgb), 0.4);
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 2px;
+}
+.settings-head-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.settings-head-title { font-size: calc(22px * var(--fs)); line-height: 28px; letter-spacing: 0; }
+.settings-head-sub {
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+}
+
+.settings-back {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  cursor: pointer;
+}
+.settings-back svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Wiersz nawigacyjny spisu treści: ikona w kaflu, tytuł, stan i strzałka. */
+.settings-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 68px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.settings-nav:active { background: rgba(var(--accent-rgb), 0.06); }
+.settings-nav-icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+}
+.settings-nav-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.settings-nav-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.settings-nav-title {
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: .1px;
+}
+.settings-nav-summary {
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+}
+.settings-nav-summary.is-accent { color: var(--accent); }
+.settings-chevron {
+  flex: 0 0 auto;
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  color: var(--text-soft);
+}
+
+/* Wiersz „co / jaka wartość” — tylko odczyt. */
+.settings-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 56px;
+  padding: 10px 16px;
+}
+.settings-info-line { display: flex; align-items: center; gap: 12px; }
+.settings-info-title { flex: 1 1 auto; font-size: calc(14px * var(--fs)); line-height: 20px; letter-spacing: .25px; }
+.settings-info-value {
+  flex: 0 0 auto;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: .25px;
+  color: var(--accent);
+}
+.settings-info-hint {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+/* Wiersz akcji: tytuł + wyjaśnienie, prowadzi na inną stronę. */
+.settings-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.settings-action:active { background: rgba(var(--accent-rgb), 0.06); }
+.settings-action-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.settings-action-title { font-size: calc(14px * var(--fs)); line-height: 20px; letter-spacing: .25px; }
+.settings-action-sub {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+/* Przełącznik ustawienia — cały wiersz jest przyciskiem z rolą switch. */
+.settings-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.settings-switch-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.settings-switch-title { display: block; font-size: calc(14px * var(--fs)); line-height: 20px; letter-spacing: .25px; }
+.settings-switch-sub {
+  display: block;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+/* Wiersz stylu: nazwa, opis, kropka z akcentem palety i radio. */
+.settings-style,
+.settings-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.settings-style:active,
+.settings-group:active { background: rgba(var(--accent-rgb), 0.06); }
+.settings-style-text,
+.settings-group-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.settings-style-title,
+.settings-group-title { font-size: calc(14px * var(--fs)); line-height: 20px; letter-spacing: .25px; }
+.settings-style-title.is-selected { font-weight: 600; }
+.settings-style-sub,
+.settings-group-sub {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+.settings-swatch { flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; }
+.settings-style .radio-mark,
+.settings-group .radio-mark { margin: 0; }
+
+.settings-style[aria-checked="true"] .radio-mark,
+.settings-group[aria-checked="true"] .radio-mark { border-color: var(--accent); }
+.settings-style[aria-checked="true"] .radio-mark::after,
+.settings-group[aria-checked="true"] .radio-mark::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: scale(1);
+}
+
+.settings-group-head {
+  margin: 2px 0 0;
+  padding-left: 4px;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+}
+
+.settings-foot,
+.settings-note {
+  margin: 4px 0 0;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+.settings-status { margin: 0; font-size: calc(14px * var(--fs)); line-height: 20px; letter-spacing: .25px; }
+.settings-status.is-error { color: var(--error); font-size: calc(12px * var(--fs)); line-height: 16px; letter-spacing: .4px; }
+
+.settings-refresh { width: 100%; margin-top: 0; }
+
+/* „Pobierz APK” to odnośnik, nie przycisk — wygląda jak filled button M3. */
+.apk-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  text-decoration: none;
+}
+
+.settings-actions-inline { display: flex; justify-content: flex-end; gap: 8px; margin-top: 0; }
+
+.settings-manual-label {
+  margin: 2px 0 0 4px;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+.settings-manual { display: flex; align-items: center; gap: 8px; }
+.settings-manual .field span { background: var(--surface); }
+.settings-manual .field input:focus + span,
+.settings-manual .field input:not(:placeholder-shown) + span { background: var(--surface); }
+
+/* Przełącznik w stylu Material 3. */
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 32px;
+  border-radius: 16px;
+  border: 2px solid var(--outline);
+  background: rgba(var(--sv-rgb), 1);
+  transition: background .2s ease, border-color .2s ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-soft);
+  transform: translateY(-50%);
+  transition: transform .2s ease, width .2s ease, height .2s ease, background .2s ease;
+}
+
+/* Stany przełącznika: `aria-checked` siedzi na przycisku (rola switch). */
+.settings-switch[aria-checked="true"] .switch,
+.switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+
+.settings-switch[aria-checked="true"] .switch::after,
+.switch[aria-checked="true"]::after {
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  background: var(--accent-on);
+  transform: translate(16px, -50%);
+}
+
+/* Szczegóły zajęć */
+.detail-title {
+  margin: 0;
+  font-size: calc(22px * var(--fs));
+  line-height: 28px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.detail-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.pill-secondary { background: var(--surface-variant); color: var(--text); }
+.pill-tertiary { background: var(--accent-soft); color: var(--text); }
+
+.detail-rows { margin-top: 16px; display: flex; flex-direction: column; }
+
+.detail-row { display: flex; padding: 6px 0; }
+
+.detail-label {
+  flex: 0 0 110px;
+  width: 110px;
+  font-size: calc(12px * var(--fs));
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+.detail-value {
+  flex: 1 1 auto;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  letter-spacing: .25px;
+  word-break: break-word;
+}
+
+.detail-divider {
+  height: 1px;
+  margin: 14px 0 10px;
+  background: var(--outline-variant);
+}
+
+/* Edytor notatki na kafelku — w szczegółach zajęć (APK 1.12 / web v38). */
+.note-editor { margin-top: 14px; }
+
+.note-editor-head { display: flex; align-items: baseline; gap: 8px; }
+
+.note-editor-title {
+  flex: 1 1 auto;
+  font-size: calc(15px * var(--fs));
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: .1px;
+}
+
+.note-editor-hint {
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  color: var(--text-soft);
+}
+
+.note-editor-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+.note-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 12px;
+  background: var(--surface-variant);
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(16px * var(--fs));
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+.note-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.note-input::placeholder { color: var(--text-soft); font-weight: 400; }
+
+.note-editor-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+.note-chip {
+  padding: 6px 12px;
+  border: 1px solid rgba(var(--accent-rgb), .35);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(13px * var(--fs));
+  font-weight: 500;
+  cursor: pointer;
+}
+.note-chip:active { filter: brightness(1.15); }
+.note-chip.is-clear {
+  background: transparent;
+  border-color: var(--outline-variant);
+  color: var(--text-soft);
+}
+.note-chip[hidden] { display: none; }
+
+.note-editor-status {
+  margin: 8px 0 0;
+  font-size: calc(11.5px * var(--fs));
+  line-height: 16px;
+  color: var(--text-soft);
+}
+
+/* Materiały */
+.materials-head { display: flex; align-items: center; gap: 4px; }
+.materials-title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: .15px;
+}
+
+.materials-progress {
+  height: 2px;
+  background: rgba(var(--accent-rgb), 0.22);
+  overflow: hidden;
+  margin: 4px 0;
+}
+.materials-progress span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  animation: indeterminate 1.1s linear infinite;
+}
+
+.materials-notice {
+  margin: 4px 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--accent);
+}
+
+.materials-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--error);
+}
+.materials-error span { flex: 1 1 auto; }
+
+.materials-hint {
+  margin: 8px 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+}
+
+/* Licznik pod nagłówkiem: „3 pliki · 2 linki” — od razu widać, że coś jest
+   dołączone (APK 1.9). */
+.materials-count {
+  margin: 0 0 8px;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .4px;
+  color: var(--accent);
+}
+
+/* Karty materiałów (APK 1.10). Każdy plik i link to osobna karta: plakietka
+   typu w miejscu ikony, nazwa jako największy tekst, `typ · rozmiar · data`
+   w drugim planie, a po prawej pobieranie i kosz. Cała karta pobiera —
+   link rozciąga się na całą kartę przez `::after`, kosz leży nad nim. */
+.material-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.material-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 8px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--outline-variant-rgb), 0.45);
+  background: rgba(var(--sv-rgb), 0.30);
+}
+
+.material-card-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Rozciągnięcie linku na całą kartę — klik w dowolnym miejscu pobiera/otwiera. */
+.material-card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+}
+
+.material-badge {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+.material-badge.is-link {
+  background: rgba(var(--tertiary-rgb, var(--accent-rgb)), 0.16);
+  color: var(--tertiary, var(--accent));
+}
+
+.material-badge svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.material-card-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+
+.material-name {
+  display: -webkit-box;
+  margin: 0;
+  font-size: calc(16px * var(--fs));
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: .15px;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.material-meta {
+  display: block;
+  margin: 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .4px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ikona pobierania jest częścią rozciągniętego linku — nie łapie własnych kliknięć. */
+.material-icon {
+  flex: 0 0 auto;
+  margin-left: 4px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* Kosz: 40 px pola na dotyk (jak IconButton w APK), nad rozciągniętym linkiem. */
+.material-icon-btn {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.material-icon-btn:active { background: rgba(var(--accent-rgb), 0.10); }
+
+.material-icon-btn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* --- AlertDialog -------------------------------------------------------- */
+
+.dialog {
+  position: fixed;
+  z-index: 42;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 420px);
+  max-height: 86dvh;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 28px;
+  background: var(--surface);
+  color: var(--text);
+  animation: fade-in .16s ease;
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: calc(24px * var(--fs));
+  line-height: 32px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.dialog-text {
+  margin-top: 16px;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  letter-spacing: .25px;
+  color: var(--text-soft);
+}
+
+.dialog-text .field span { background: var(--surface); }
+.dialog-text .field input:focus + span,
+.dialog-text .field input:not(:placeholder-shown) + span { background: var(--surface); }
+
+.dialog-text .field + .field { margin-top: 12px; }
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.dialog-note {
+  margin: 10px 0 0;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+}
+
+/* Wstęp do zgłoszenia i podziękowanie po wysłaniu — czytelniejsze niż akapit
+   w kolorze pomocniczym, bo to jedyny tekst w tym dialogu. */
+.dialog-intro {
+  margin: 0 0 10px;
+  font-size: calc(13px * var(--fs));
+  line-height: 18px;
+  letter-spacing: .2px;
+  color: var(--text-soft);
+}
+
+.dialog-done { margin: 0; font-size: calc(14px * var(--fs)); line-height: 20px; color: var(--text); }
+
+/* Zgłoszenie propozycji/błędu (APK 1.12): wielolinijkowe pole, licznik znaków
+   i miejsce na komunikat błędu — wszystko w tym samym dialogu co reszta. */
+.dialog-textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 12px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid var(--outline);
+  background: rgba(var(--sv-rgb), 0.35);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  letter-spacing: .25px;
+}
+
+.dialog-textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.dialog-foot { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
+
+.dialog-error {
+  margin: 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .4px;
+  color: var(--error);
+}
+
+.dialog-counter {
+  margin-left: auto;
+  font-size: calc(11px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+/* --- toast -------------------------------------------------------------- */
+
+.toast {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  max-width: 88vw;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(var(--surface-rgb), 0.98);
+  color: var(--text);
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  letter-spacing: .25px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .35);
+  animation: fade-in .16s ease;
+}
+
+/* --- animacje przejść (AnimatedContent) --------------------------------- */
+
+/* Przejścia stron (dzień, okres, widok) nie mają keyframe'ów: wszystko jedzie
+   `springSlide()` + `pageEasing()` w `applyEnterAnimation`, czyli tą samą
+   sprężyną co dolny pasek, i zawsze o pełną szerokość. Krótszy ruch zostawiał
+   kopię starej treści nad nową i ucinał ją skokowo (v15). */
+
+/* Kopia starej treści odjeżdża w bok w tym samym tempie, w którym wjeżdża nowa —
+   jak `AnimatedContent` w Compose (slideIn + slideOut). Dzięki temu w trakcie
+   ruchu po żadnej stronie nie ma pustego tła. */
+.view-exit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Przeciąganie w bok: element idzie za palcem, bez animacji. */
+.dragging { transition: none !important; }
+
+/* --- szerokie ekrany ---------------------------------------------------- */
+
+@media (min-width: 561px) {
+  .aurora { background-size: 100% 100%; }
+  .bottom-bar { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------- Picker wymiarów
+   Nabór, kierunek, specjalność, rok, typ studiów i tryb. Ten sam rząd co wiersze
+   panelu ustawień (etykieta po lewej, wartość po prawej), żeby picker wyglądał
+   jak strona „Grupa” w aplikacji natywnej, a nie jak formularz z webu. */
+.welcome-picker { margin: 14px 0 10px; }
+
+.picker-card {
+  border-radius: calc(var(--radius) * 0.72);
+  background: rgba(var(--sv-rgb), 0.55);
+  border: 1px solid var(--outline-variant);
+  overflow: hidden;
+}
+
+.pick-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--outline-variant);
+}
+.pick-field:last-child { border-bottom: 0; }
+
+.pick-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: calc(14px * var(--fs));
+  color: var(--text);
+}
+.pick-hint {
+  font-size: calc(11px * var(--fs));
+  color: var(--text-soft);
+}
+
+/* Natywny <select> bez ramki: wartość wyrównana do prawej, strzałka jak w APK. */
+.pick-select {
+  flex: 0 1 auto;
+  max-width: 55%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: calc(14px * var(--fs));
+  font-weight: 500;
+  text-align: right;
+  text-align-last: right;
+  padding: 6px 20px 6px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 10px center, right 5px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.pick-select:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.6);
+  outline-offset: 1px;
+}
+.pick-select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.picker-scope {
+  margin: 8px 2px 0;
+  font-size: calc(12px * var(--fs));
+  color: var(--text-soft);
+}
+.picker-note {
+  margin: 4px 2px 0;
+  font-size: calc(12px * var(--fs));
+  color: var(--accent);
+}
+
+/* ------------------------------------------------- Wybór planu (v29)
+   Jeden ekran, jeden otwarty krok: wybrane zwijają się do wiersza
+   („Rocznik · 2024/2025 ›”), a pod nim pojawia się następny krok. Nie ma
+   paska kroków ani arkusza — wybór rośnie w miejscu. */
+.pick { display: flex; flex-direction: column; }
+
+.pick-section { margin: 2px 0 18px; }
+.pick-section:first-child { margin-top: 0; }
+
+.pick-head {
+  margin: 0 0 10px;
+  font-size: calc(11px * var(--fs));
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.pick-sum {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--outline-variant);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pick-sum:active { background: rgba(var(--accent-rgb), .06); }
+.pick-sum-label { flex: 0 0 auto; font-size: calc(13px * var(--fs)); color: var(--text-soft); }
+.pick-sum-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  text-align: right;
+  font-size: calc(15px * var(--fs));
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick-sum-go { flex: 0 0 auto; color: var(--text-soft); font-size: calc(18px * var(--fs)); }
+
+.pick-hint {
+  margin: 0 0 8px;
+  font-size: calc(13px * var(--fs));
+  line-height: 18px;
+  color: var(--text-soft);
+}
+
+/* „Zacznij od nowa” — mały link pod całym wyborem. */
+.pick-reset {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: left;
+}
+
+.wiz-list { padding: 2px 0; }
+.wiz-list .radio-row { border-radius: 0; }
+.wiz-list .radio-row + .radio-row { border-top: 1px solid var(--outline-variant); }
+.wiz-list .settings-group-head { margin: 12px 14px 4px; }
+
+/* Pole „Szukaj kierunku” (v28). Pokazuje się tylko przy dłuższej liście —
+   przy krótkiej cała lista mieści się na ekranie i pole byłoby zbędnym
+   krokiem. Leży nad listą, więc wpisujemy litery, zanim zaczniemy przewijać. */
+.wiz-search {
+  padding: 2px 0 10px;
+}
+.wiz-search input {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: calc(15px * var(--fs));
+  color: var(--text);
+  background: rgba(var(--surface-rgb), .55);
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  outline: none;
+  appearance: none;
+}
+.wiz-search input:focus { border-color: var(--accent); }
+.wiz-search input::placeholder { color: var(--text-soft); }
+
+/* Liczba po prawej stronie wiersza wyboru (np. „3. rok” przy roczniku). */
+.radio-meta {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: calc(12px * var(--fs));
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* Pasek akcji przyklejony do dolnej krawędzi arkusza: przy kilkudziesięciu
+   grupach „Dodaj wybrane” musi być widoczne bez przewijania na sam koniec.
+   Ujemne `bottom` i ujemny dolny margines sięgają w padding arkusza, żeby pod
+   paskiem nie prześwitywały przewijane wiersze. */
+.wiz-actions {
+  position: sticky;
+  bottom: calc(-20px - env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 16px -20px calc(-20px - env(safe-area-inset-bottom, 0px));
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--surface) 72%, rgba(var(--surface-rgb), 0));
+}
+.wiz-actions .btn-filled { min-width: 0; }
+.wiz-count {
+  margin-right: auto;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  color: var(--text-soft);
+}
+
+/* Grupy w planie (Opcje → Plan): tytuł, podpis i „Usuń” w jednym wierszu. */
+.plan-group-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.plan-group-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.plan-group-title { font-size: calc(14px * var(--fs)); font-weight: 500; }
+.plan-group-sub { font-size: calc(11.5px * var(--fs)); color: var(--text-soft); }
+.plan-base {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), .16);
+  color: var(--accent);
+  font-size: calc(10px * var(--fs));
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* --- instalacja aplikacji (PWA/APK) -------------------------------------- */
+
+/* Instrukcja w oknie „Zainstaluj aplikację”: akapit wstępu, sekcje (PWA, APK)
+   i numerowane kroki. Kolory z palety motywu, więc działa w każdym stylu. */
+.install-lead {
+  margin: 0 0 14px;
+  font-size: calc(14px * var(--fs));
+  line-height: 20px;
+  letter-spacing: .2px;
+  color: var(--text);
+}
+
+.install-section { margin-top: 16px; }
+.install-section:first-of-type { margin-top: 0; }
+
+.install-section-title {
+  margin: 0 0 8px;
+  font-size: calc(13px * var(--fs));
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: .1px;
+  color: var(--text);
+}
+
+.install-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  font-size: calc(13px * var(--fs));
+  line-height: 19px;
+  letter-spacing: .2px;
+  color: var(--text-soft);
+}
+
+/* Ścieżka kliknięć nad krokami — jedna linia do przeczytania jednym spojrzeniem
+   („trzy kropki ⋮ → Zainstaluj i utwórz skrót → Zainstaluj”). */
+.install-shortcut {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--text);
+  font-size: calc(12.5px * var(--fs));
+  line-height: 18px;
+  letter-spacing: .2px;
+}
+
+.install-shortcut-label {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--accent);
+  font-size: calc(10px * var(--fs));
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.install-step::marker { color: var(--accent); }
+.install-step strong { color: var(--text); font-weight: 600; }
+
+.install-hint {
+  margin: 6px 0 0;
+  font-size: calc(12px * var(--fs));
+  line-height: 17px;
+  letter-spacing: .3px;
+  color: var(--text-soft);
+}
+
+.install-apk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  min-height: 40px;
+  padding: 0 20px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: calc(14px * var(--fs));
+  font-weight: 500;
+  letter-spacing: .1px;
+  text-decoration: none;
+}
+
+.install-apk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Pasek „Zainstaluj” nad dolnymi kafelkami — tylko gdy przeglądarka wysłała
+   `beforeinstallprompt` (Chromium). Safari nie ma tego zdarzenia, więc tam
+   zostaje instrukcja z Opcji. */
+.install-banner {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 560px);
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px 10px 16px;
+  border-radius: 22px;
+  background: rgba(var(--surface-rgb), 0.98);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(var(--outline-variant-rgb), 0.55),
+    0 10px 28px rgba(0, 0, 0, 0.32);
+  animation: fade-in .18s ease;
+}
+
+.install-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  font-size: calc(12px * var(--fs));
+  line-height: 16px;
+  letter-spacing: .3px;
+  color: var(--text-soft);
+}
+
+.install-banner-text strong {
+  font-size: calc(14px * var(--fs));
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.install-banner-go {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 19px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font: inherit;
+  font-size: calc(13px * var(--fs));
+  font-weight: 600;
+}
+
+.install-banner-close {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.install-banner-close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.install-banner-close:active,
+.install-banner-go:active { opacity: .82; }

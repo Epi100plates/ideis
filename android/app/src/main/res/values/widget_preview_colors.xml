@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kolory statycznych podglądów w wyborze widżetów (jasna tonacja).
+
+  Ten plik nie zna motywu wybranego w aplikacji — launcher rysuje podgląd
+  z zasobów, a nie z kompozycji Glance. Dlatego jest tu wariant dzienny
+  (`values`) i nocny (`values-night`), żeby wybór widżetów nie pokazywał
+  ciemnego kafla na jasnym pulpicie. Kolory odpowiadają klasycznej jasnej
+  palecie aplikacji.
+-->
+<resources>
+    <color name="widget_preview_panel">#F4F6FB</color>
+    <color name="widget_preview_title">#14161C</color>
+    <color name="widget_preview_meta">#4A5468</color>
+    <color name="widget_preview_accent">#4F46E5</color>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Co FileProvider może pokazać innym aplikacjom. Tylko katalog `files/updates`,
+  w którym leży pobrany APK — reszta plików aplikacji zostaje prywatna.
+-->
+<paths>
+    <files-path
+        name="updates"
+        path="updates/" />
+</paths>

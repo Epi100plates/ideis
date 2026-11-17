@@ -1,0 +1,16 @@
+**/.git
+**/.gitignore
+**/node_modules
+**/.cache
+**/data
+**/docs
+**/deploy
+**/.deploy
+**/*.log
+**/.env
+**/.env.example
+README.md
+# Fork APK: źródła Androida nie wchodzą do obrazu serwera (kilkaset MB
+# z katalogiem build), a APK publikuje się do wolumenu releases/.
+android
+releases

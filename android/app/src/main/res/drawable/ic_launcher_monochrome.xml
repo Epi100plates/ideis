@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Sylwetka kalendarza dla ikon tematycznych (monochrome). -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,30h40a8,8 0 0 1 8,8v6H26v-6a8,8 0 0 1 8,-8z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,24h4v12h-4zM70,24h4v12h-4z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,48h56v30a8,8 0 0 1 -8,8H34a8,8 0 0 1 -8,-8V48zM34,56v6h8v-6H34zM48,56v6h8v-6h-8zM62,56v6h8v-6h-8zM34,68v6h8v-6H34zM48,68v6h8v-6h-8z" />
+</vector>

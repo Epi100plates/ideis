@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tło statycznego podglądu widżetu (patrz `layout/widget_preview_week.xml`).
+  Ten sam ciemny panel z ciepłym akcentem co wariant „Vision” w ciemnej palecie,
+  bo tak wygląda większość widżetów na pulpitach — a podgląd w wyborze widżetów
+  ma pokazywać produkt, nie domyślny biały kafel launchera.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/widget_preview_panel" />
+    <corners android:radius="26dp" />
+</shape>

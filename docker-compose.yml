@@ -1,0 +1,47 @@
+# Plan zajęć — wersja z wyborem roku, kierunku, specjalności, naboru i typu
+# studiów. Uruchomienie w Dockerze.
+#
+#   cp .env.example .env          # ustaw DEFAULT_*, harmonogram itd.
+#   mkdir -p data && chown 1000:1000 data
+#   docker compose up -d --build
+#
+# Aplikacja słucha wyłącznie na pętli lokalnej (127.0.0.1:3002) — na świat
+# wystawia ją cloudflared (ideis.mati-it.pl). Chcesz podejrzeć z LAN-u?
+# Ustaw BIND_ADDR=0.0.0.0.
+name: plany-wybor
+
+services:
+  plany-wybor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: plany-wybor:latest
+    container_name: plany-wybor
+    restart: unless-stopped
+    # Wszystkie ustawienia (DEFAULT_FIELD, REFRESH_WEEKDAY_MIN, ...) idą z .env.
+    # Brak pliku nie wywala startu — działają wtedy wartości domyślne.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      CACHE_DIR: /app/.cache
+      # Harmonogram „weekend” liczymy w czasie polskim, nie w UTC kontenera.
+      TZ: Europe/Warsaw
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${APP_PORT:-3002}:3000"
+    volumes:
+      # Cache planów, katalog grup i załączniki przeżywają restart i przebudowę.
+      - ./data:/app/.cache
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

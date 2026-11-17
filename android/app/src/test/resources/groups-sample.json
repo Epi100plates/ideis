@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "defaultGroup": "21188",
+  "defaults": {
+    "nabor": "2026",
+    "field": "Informatyka",
+    "spec": "",
+    "year": "1",
+    "degree": "1st",
+    "mode": "N"
+  },
+  "academicYear": { "start": "2026", "label": "2026/2027" },
+  "savedAt": "2026-11-15T18:29:25.998Z",
+  "stale": false,
+  "count": 3,
+  "groups": [
+    {
+      "id": "21188",
+      "c": "Infor. 1st 1sem Ćw2",
+      "n": "Informatyka, 1st 1sem Ćw (gr. 2) N",
+      "f": "Informatyka",
+      "s": null,
+      "d": "1st",
+      "m": "N",
+      "y": 1,
+      "b": [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+      "sem": 1,
+      "k": "Ćw",
+      "num": "2"
+    },
+    {
+      "id": "20679",
+      "c": "Admin. 1st 3sem Wyk",
+      "n": "Prawo w biznesie i administracji, 1st 3sem Wyk N",
+      "f": "Administracja",
+      "s": "Prawo w biznesie i administracji",
+      "d": "1st",
+      "m": "N",
+      "y": 2,
+      "b": [2024, 2025],
+      "sem": 3,
+      "k": "Wyk",
+      "num": null
+    },
+    {
+      "id": "22413",
+      "c": "Erasmus+ 25/26z Wyk",
+      "n": "Exploring Central Europe, 25/26z Wyk",
+      "f": "Exploring Central Europe",
+      "s": "Exploring Central Europe",
+      "d": null,
+      "m": null,
+      "y": null,
+      "b": [],
+      "sem": null,
+      "k": "Wyk",
+      "num": null
+    }
+  ]
+}

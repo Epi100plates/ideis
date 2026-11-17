@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Plan zajęć DSW</string>
+    <string name="widget_label">Plan zajęć — tydzień</string>
+    <string name="widget_description">Plan zajęć na najbliższy tydzień — siedem wersji graficznych</string>
+    <string name="widget_day_label">Plan zajęć — dzień</string>
+    <string name="widget_day_description">Plan zajęć na jeden dzień — siedem wersji graficznych</string>
+
+    <string name="widget_config_title">Wygląd widżetu</string>
+    <string name="widget_config_hint">Siedem wersji graficznych. Każda pokazuje godziny, typ zajęć, salę i długość.</string>
+    <string name="widget_config_confirm">Gotowe</string>
+    <string name="widget_config_cancel">Anuluj</string>
+    <string name="widget_look_vision_title">Vision</string>
+    <string name="widget_look_vision_hint">Szkło i ciepły akcent, jak visionOS</string>
+    <string name="widget_look_minimal_title">Minimal</string>
+    <string name="widget_look_minimal_hint">Płaski i cichy — godziny oraz przedmioty</string>
+    <string name="widget_look_accent_title">Akcent</string>
+    <string name="widget_look_accent_hint">Kolorowy nagłówek i karty zajęć</string>
+    <string name="widget_look_timeline_title">Oś czasu</string>
+    <string name="widget_look_timeline_hint">Pionowa linia z punktami przy zajęciach</string>
+    <string name="widget_look_tiles_title">Kafelki</string>
+    <string name="widget_look_tiles_hint">Karty zajęć z paskiem koloru przedmiotu, jak w aplikacji</string>
+    <string name="widget_look_compact_title">Kompakt</string>
+    <string name="widget_look_compact_hint">Jedna linia na zajęcia i cienkie separatory — najwięcej miejsca</string>
+    <string name="widget_look_glass_title">Szkło</string>
+    <string name="widget_look_glass_hint">Przezroczysty panel, duża godzina i plakietka typu</string>
+
+    <string name="widget_title">Plan zajęć</string>
+    <string name="widget_empty">Brak zajęć w najbliższym tygodniu</string>
+    <string name="widget_updated">%1$s · plan %2$s</string>
+    <string name="widget_day_title">Plan dnia</string>
+    <string name="widget_day_empty">Brak zajęć w tym dniu</string>
+    <string name="widget_day_subtitle">%1$s · plan %2$s</string>
+
+    <!--
+      Statyczne podglądy w wyborze widżetów (`layout/widget_preview_*.xml`).
+      Treść jest przykładowa — chodzi o to, żeby miniatura pokazywała prawdziwy
+      układ widżetu, a nie pusty kafel.
+    -->
+    <string name="widget_preview_group">Ćw (gr. 2)</string>
+    <string name="widget_preview_week_subtitle">pon 10.11–niedz 16.11 · plan 10.11</string>
+    <string name="widget_preview_day_subtitle">Dziś · Sob 15.11 · plan 10.11</string>
+    <string name="widget_preview_time_1">10:45</string>
+    <string name="widget_preview_time_1_end">12:15</string>
+    <string name="widget_preview_subject_1">Analiza matematyczna</string>
+    <string name="widget_preview_meta_1">Ćw · s. 204</string>
+    <string name="widget_preview_time_2">12:30</string>
+    <string name="widget_preview_time_2_end">14:00</string>
+    <string name="widget_preview_subject_2">Programowanie</string>
+    <string name="widget_preview_meta_2">Wyk · zdalnie</string>
+    <string name="widget_preview_time_3">14:15</string>
+    <string name="widget_preview_time_3_end">15:45</string>
+    <string name="widget_preview_subject_3">Algebra liniowa</string>
+    <string name="widget_preview_meta_3">Ćw · S55 27</string>
+</resources>

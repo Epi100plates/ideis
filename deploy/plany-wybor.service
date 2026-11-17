@@ -1,0 +1,32 @@
+[Unit]
+Description=Plan zajec (wybor roku, kierunku, specjalnosci, naboru) - kalendarz z harmonogramow uczelni
+Documentation=https://ideis.mati-it.pl
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=plan
+Group=plan
+WorkingDirectory=/opt/plany-wybor
+Environment=NODE_ENV=production
+Environment=TZ=Europe/Warsaw
+EnvironmentFile=-/opt/plany-wybor/.env
+ExecStart=/usr/bin/node server/index.js
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+# Podstawowe utwardzenie usługi
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/plany-wybor/.cache
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kolory statycznych podglądów w wyborze widżetów (nocna tonacja) — odpowiednik
+  `values/widget_preview_colors.xml`. Wartości to ciemna klasyczna paleta
+  aplikacji, żeby miniatura nie odcinała się od ciemnego pulpitu.
+-->
+<resources>
+    <color name="widget_preview_panel">#E6151A23</color>
+    <color name="widget_preview_title">#E8ECF4</color>
+    <color name="widget_preview_meta">#B3BCCC</color>
+    <color name="widget_preview_accent">#8B8BFF</color>
+</resources>
