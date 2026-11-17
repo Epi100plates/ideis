@@ -339,6 +339,16 @@ const ScheduleViews = {
  */
 const WHATS_NEW = [
   {
+    version: 'v38',
+    title: 'Arkusze zjeżdżają w dół pod palcem',
+    items: [
+      'Pasek na górze arkusza (Opcje, szczegóły zajęć, notatka, „Co nowego”) działa jak uchwyt: przeciągnij w dół, żeby go schować',
+      'Puszczenie poniżej progu albo szybkim ruchem zamyka arkusz; krótkie drgnięcie wraca na miejsce',
+      'Gdy treść jest przewinięta na samą górę, wystarczy pociągnąć w dół w dowolnym miejscu arkusza',
+      'Działa palcem, rysikiem i myszą — wcześniej pasek był tylko ozdobą i arkusz zamykał się wyłącznie dotknięciem tła',
+    ],
+  },
+  {
     version: 'v37',
     title: 'Picker kolorów, który wreszcie tłumaczy, co robi',
     items: [

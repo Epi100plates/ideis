@@ -7,26 +7,26 @@
    zostaje „sieć → cache”, żeby plan był świeży, gdy sieć jest dostępna. */
 'use strict';
 
-const VERSION = 'v42';
+const VERSION = 'v43';
 const SHELL_CACHE = `plan-android-shell-${VERSION}`;
 const API_CACHE = `plan-android-api-${VERSION}`;
 
 const SHELL_ASSETS = [
   '/',
-  '/theme-boot.js?v=42',
-  '/native.css?v=42',
-  '/selection.js?v=42',
-  '/wizard.js?v=42',
-  '/styles.js?v=42',
-  '/schedule.js?v=42',
-  '/visit-ping.js?v=42',
-  '/app.js?v=42',
+  '/theme-boot.js?v=43',
+  '/native.css?v=43',
+  '/selection.js?v=43',
+  '/wizard.js?v=43',
+  '/styles.js?v=43',
+  '/schedule.js?v=43',
+  '/visit-ping.js?v=43',
+  '/app.js?v=43',
   '/fonts/Roboto-latin.woff2',
   '/fonts/Roboto-latin-ext.woff2',
   '/manifest.webmanifest',
-  '/icons/icon-192.png?v=42',
-  '/icons/icon-512.png?v=42',
-  '/icons/apple-touch-icon-180.png?v=42',
+  '/icons/icon-192.png?v=43',
+  '/icons/icon-512.png?v=43',
+  '/icons/apple-touch-icon-180.png?v=43',
 ];
 
 self.addEventListener('install', (event) => {

@@ -1479,3 +1479,43 @@ kontrast i flagę „poprawiono”.
 | `:app:lintDebug` | exit 0 (24 ostrzeżenia, 0 błędów) |
 | Chromium (`127.0.0.1:3399`) | 6 par, 8 akcentów, 6 teł; para „Papier” → `data-style=custom`, `--accent` `rgb(0, 113, 227)`, `--page` `rgb(245, 245, 247)` bez zaznaczania stylu; akcent `#22D3EE` na jasnym tle → `#137382` + zdanie „jest za jasny…”; ciemne tło → akcent bez zmian; zapis w `localStorage` (`customPrimary`, `styleId: 'custom'`) |
 | Emulator (Pixel 9 Pro, API 34, APK 1.13-debug) | „Co nowego 1.13 (19)”; Opcje → Wygląd → „Gotowe motywy” (6 par) + „Własny motyw” (8 + 6 próbek) + „Dokładny kolor” (kwadrat SV, pasek barwy, `#7C5CFF 251° · 63% · 100%`) + podgląd kafelka z plakietką „Kolos” i werdyktem „kontrast 4.5:1 — nic nie zmieniamy”; dotknięcie pary „Papier” przemalowało całą aplikację na jasny motyw, próbka `#22D3EE` na jasnym tle dała werdykt „przyciemniony do #138282” (4,2:1) |
+
+## 27. Arkusz zjeżdża w dół gestem (17.11.2026)
+
+Chwyt na górze arkusza (`.sheet-grab`) istniał w znaczniku od początku, ale był
+**tylko ozdobą**: w `app.js` nie było żadnego nasłuchu gestu, więc pasek wyglądał
+jak uchwyt, a przesuwanie go w dół nic nie robiło. Arkusz zamykał się wyłącznie
+dotknięciem tła (`#sheetScrim`), klawiszem Escape albo „Wstecz”. Na telefonie,
+gdzie taki pasek czyta się jak uchwyt `ModalBottomSheet`, to była pułapka.
+
+### Co doszło
+
+| Element | Zachowanie |
+| --- | --- |
+| `attachSheetDismiss` (`public/app.js`) | arkusz idzie za palcem (z oporem od 60 px: `60 + (dy − 60) × 0,55`), tło przygasa razem z nim |
+| próg zamknięcia | ponad 96 px **albo** 30 % wysokości arkusza — lub pstryknięcie szybsze niż 550 px/s, ale tylko po realnym ruchu (≥ 64 px), żeby drgnięcie palcem nie zamykało panelu |
+| powrót | za krótki gest wraca sprężyście (220 ms), bez zamykania |
+| start gestu | chwyt zawsze; treść tylko wtedy, gdy `sheetBody.scrollTop === 0` — przewinięta lista zachowuje się jak lista |
+| wejścia | dotyk (`touchstart/touchmove/touchend`, `passive: false` na `touchmove`) **i** mysz/rysik (`pointer*`) — ten sam gest, jak w `attachSwipe` |
+| strażnik kliknięcia | po geście `click` w wiersz pod palcem jest tłumiony (350 ms), więc przeciągnięcie po liście stylów nie zaznacza motywu |
+| sprzątanie | `enterOverlay` i `closeSheet` zerują `transform`, `opacity` tła i klasy `dragging`/`is-settling`/`is-closing` |
+
+`.sheet-grab` dostał `touch-action: none`, bo inaczej przeglądarka zamieniała
+gest na przewijanie strony i ruch nigdy nie docierał do nasłuchu.
+
+### Wersje
+
+| Co | Wartość |
+| --- | --- |
+| powłoka web | **v43** (`?v=43`, `VERSION='v43'`) |
+| „Co nowego” web | **v38** |
+| APK | bez zmian — `ModalBottomSheet` w Compose ma ten gest domyślnie (**1.13 (19)** czeka na publikację) |
+
+### Weryfikacja
+
+| Sprawdzenie | Wynik |
+| --- | --- |
+| `node scripts/self-test.js` | **136 testów, 0 błędów** — nowy test: gest podpięty przy starcie, oba wejścia (dotyk i mysz), `touch-action: none` na chwycie, próg `FLICK_MIN`/`CLOSE_MIN`, warunek `scrollTop <= 0`, sprzątanie stylów, strażnik kliknięcia |
+| Chromium, mysz (500 × 933) | „Co nowego” i Opcje zamykają się przeciągnięciem 220–240 px; `translateY(159px)` w trakcie (opór działa); drgnięcie 40 px **nie** zamyka; ciągnięcie w górę nie zmienia niczego; przy `scrollTop = 500` (treść 2326 px) gest w dół przewija listę, a arkusz zostaje na miejscu |
+| Chromium, dotyk (syntetyczne `TouchEvent`) | `translateY(148px)` w trakcie i zamknięcie po puszczeniu — ścieżka dotykowa działa niezależnie od myszy |
+| Strażnik kliknięcia | gest 80 px kończący się na wierszu „Liquid Glass 1” nie zmienił motywu (`custom` przed i po); zwykłe dotknięcie tego samego wiersza motyw zmienia |

@@ -2,7 +2,7 @@
 
 [![Licencja](https://img.shields.io/badge/licencja-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933.svg?logo=node.js&logoColor=white)](package.json)
-[![Testy](https://img.shields.io/badge/testy-135%2F135-2ea44f.svg)](scripts/self-test.js)
+[![Testy](https://img.shields.io/badge/testy-136%2F136-2ea44f.svg)](scripts/self-test.js)
 [![Android](https://img.shields.io/badge/Android-1.13%20(19)-3DDC84.svg?logo=android&logoColor=white)](android/version.properties)
 
 **Plan zajęć DSW w interfejsie natywnej aplikacji.** Przeglądarka (PWA) i telefon
@@ -51,7 +51,7 @@ Wymagania: **Node.js ≥ 18** (nic więcej — brak `node_modules`).
 
 ```bash
 npm start     # http://localhost:3000
-npm test      # 135 testów własnych (parser, API, notatki, limity, HTTP)
+npm test      # 136 testów własnych (parser, API, notatki, limity, HTTP)
 ```
 
 Konfiguracja idzie zmiennymi środowiskowymi (albo plikiem `.env`) — pełna lista
@@ -140,7 +140,7 @@ tests/       fixture'y HTML z harmonogramów
 
 | Bramka | Jak uruchomić | Stan |
 | --- | --- | --- |
-| Testy serwera i webu | `npm test` | 135 / 135 |
+| Testy serwera i webu | `npm test` | 136 / 136 |
 | Testy Androida | `cd android && ./gradlew testDebugUnitTest` | 278 / 278 |
 | Lint Androida | `cd android && ./gradlew lintDebug` | bez błędów |
 

@@ -211,7 +211,7 @@
    * Niezależna od `VERSION` w public/sw.js — tamta numeruje cache powłoki,
    * więc podbija się także przy samych poprawkach bez nowości.
    */
-  const APP_VERSION = 'v37';
+  const APP_VERSION = 'v38';
 
   const $ = (id) => document.getElementById(id);
 
@@ -2930,6 +2930,11 @@
   function enterOverlay(kind) {
     const layer = kind === 'sheet' ? $('sheet') : $('dialog');
     if (layer.hidden) focusReturn[kind] = document.activeElement;
+    // Arkusz mógł zostać wcześniej przymknięty gestem — bez tego otworzyłby się
+    // przesunięty albo z wygaszonym tłem.
+    layer.classList.remove('dragging', 'is-settling', 'is-closing');
+    layer.style.transform = '';
+    if (kind === 'sheet') $('sheetScrim').style.opacity = '';
     layer.hidden = false;
     $(kind === 'sheet' ? 'sheetScrim' : 'dialogScrim').hidden = false;
     setBackgroundInert(true);
@@ -2953,7 +2958,10 @@
     // z planem (karta „Plan” kłamałaby, a „Dodaj grupy” filtrowało zły rocznik).
     if (state.sheetKind === 'settings') restoreAppliedSelection();
     $('sheet').hidden = true;
+    $('sheet').classList.remove('dragging', 'is-settling', 'is-closing');
+    $('sheet').style.transform = '';
     $('sheetScrim').hidden = true;
+    $('sheetScrim').style.opacity = '';
     $('sheetBody').innerHTML = '';
     state.sheetKind = null;
     // Tło wraca dopiero, gdy pod spodem nie ma już dialogu.
@@ -4869,6 +4877,193 @@
    * albo wraca na miejsce, albo przełącza dzień/tydzień/miesiąc — jak
    * `AnimatedContent` + `periodSwipe` w natywnej aplikacji.
    */
+  /**
+   * Zsuwanie arkusza w dół („swipe to dismiss”).
+   *
+   * Chwyt na górze arkusza (`.sheet-grab`) był dotąd **tylko ozdobą**: arkusz
+   * zamykał się wyłącznie dotknięciem tła, Escape albo „Wstecz”, a na telefonie
+   * pasek wygląda jak uchwyt do przeciągnięcia — i nie reagował. Teraz arkusz
+   * idzie za palcem (z oporem), a puszczenie poniżej progu albo szybkim ruchem
+   * zamyka go; krótkie drgnięcie wraca na miejsce.
+   *
+   * Gest czytamy tak samo jak `attachSwipe`: dotyk przez `touch*` (odporne na
+   * `pointercancel`, które przeglądarka wysyła przy przewijaniu), mysz i rysik
+   * przez `pointer*`. Ciągnięcie w dół chwyta arkusz także wtedy, gdy treść
+   * jest przewinięta na samą górę — jak w natywnym `ModalBottomSheet`.
+   */
+  function attachSheetDismiss(sheet) {
+    if (!sheet) return;
+    const SLOP = 8;
+    // Powyżej tylu pikseli arkusz stawia opór — widać, że „nie chce” się zamknąć.
+    const RESIST_FROM = 60;
+    const RESIST_GAIN = 0.55;
+    const CLOSE_VELOCITY = 550;
+    // Odległość i prędkość to dwie różne drogi do zamknięcia: krótki, ale
+    // szybki ruch (pstryknięcie) też ma zamykać, byle arkusz naprawdę ruszył się
+    // w dół — inaczej drgnięcie 30 px zamykało panel, w którym ktoś tylko
+    // musnął palcem.
+    const FLICK_MIN = 64;
+    const CLOSE_MIN = 96;
+    const CLOSE_SHARE = 0.3;
+    const VELOCITY_WINDOW_MS = 100;
+    const SETTLE_MS = 220;
+    const OUT_MS = 180;
+
+    const body = $('sheetBody');
+    const scrim = $('sheetScrim');
+    let active = false;
+    let decided = null;
+    let fromGrab = false;
+    let startY = 0;
+    let offset = 0;
+    let samples = [];
+    let settleTimer = 0;
+    let guardClick = 0;
+    let closing = false;
+
+    const remember = (y) => {
+      const now = performance.now();
+      samples.push({ t: now, y });
+      while (samples.length > 2 && now - samples[0].t > VELOCITY_WINDOW_MS) samples.shift();
+    };
+
+    /** Prędkość końcówki gestu w px/s (dodatnia = palec w dół). */
+    const velocityOf = () => {
+      if (samples.length < 2) return 0;
+      const first = samples[0];
+      const last = samples[samples.length - 1];
+      const dt = last.t - first.t;
+      if (dt < 8) return 0;
+      return ((last.y - first.y) / dt) * 1000;
+    };
+
+    const paint = (px) => {
+      sheet.style.transform = px > 0 ? `translateY(${px}px)` : '';
+      if (scrim) scrim.style.opacity = px > 0 ? String(Math.max(0.1, 1 - px / 420)) : '';
+    };
+
+    const clearStyles = () => {
+      sheet.classList.remove('dragging', 'is-settling', 'is-closing');
+      sheet.style.transform = '';
+      if (scrim) scrim.style.opacity = '';
+    };
+
+    const begin = (y, target) => {
+      if (closing) return;
+      window.clearTimeout(settleTimer);
+      active = true;
+      decided = null;
+      offset = 0;
+      samples = [];
+      startY = y;
+      fromGrab = !!(target && target.closest && target.closest('.sheet-grab'));
+      remember(y);
+    };
+
+    const move = (y) => {
+      if (!active || closing) return false;
+      const dy = y - startY;
+      if (decided === null) {
+        if (Math.abs(dy) < SLOP) return false;
+        // W górę arkusz się nie rozciąga, a z przewiniętej treści gest w dół
+        // należy do listy — chyba że zaczęto go na samym chwycie.
+        if (dy <= 0) { active = false; return false; }
+        const atTop = !body || body.scrollTop <= 0;
+        if (!fromGrab && !atTop) { active = false; return false; }
+        decided = 'y';
+        sheet.classList.remove('is-settling');
+        sheet.classList.add('dragging');
+      }
+      remember(y);
+      offset = dy > RESIST_FROM ? RESIST_FROM + (dy - RESIST_FROM) * RESIST_GAIN : dy;
+      paint(offset);
+      return true;
+    };
+
+    const finish = () => {
+      if (!active) return;
+      active = false;
+      const dragged = decided === 'y';
+      decided = null;
+      if (!dragged) return;
+      // Po przeciągnięciu przeglądarka wyśle jeszcze `click` w wiersz pod
+      // palcem — tłumimy go, żeby gest nie zaznaczał motywu ani nie otwierał
+      // zajęć.
+      guardClick = Date.now() + 350;
+      const velocity = velocityOf();
+      const height = sheet.getBoundingClientRect().height || 1;
+      const threshold = Math.min(140, height * CLOSE_SHARE);
+      sheet.classList.remove('dragging');
+      samples = [];
+      if (offset > Math.max(CLOSE_MIN, threshold) || (offset > FLICK_MIN && velocity > CLOSE_VELOCITY)) {
+        closing = true;
+        sheet.classList.add('is-closing');
+        paint(height);
+        if (scrim) scrim.style.opacity = '0';
+        window.setTimeout(() => {
+          closing = false;
+          clearStyles();
+          closeSheet();
+        }, OUT_MS);
+        return;
+      }
+      sheet.classList.add('is-settling');
+      paint(0);
+      settleTimer = window.setTimeout(() => {
+        sheet.classList.remove('is-settling');
+        clearStyles();
+      }, SETTLE_MS);
+    };
+
+    const cancel = () => {
+      if (!active) return;
+      active = false;
+      decided = null;
+      sheet.classList.remove('is-settling');
+      clearStyles();
+    };
+
+    sheet.addEventListener('touchstart', (event) => {
+      if (event.touches.length !== 1) return cancel();
+      begin(event.touches[0].clientY, event.target);
+    }, { passive: true });
+
+    sheet.addEventListener('touchmove', (event) => {
+      if (event.touches.length !== 1) return;
+      if (move(event.touches[0].clientY) && event.cancelable) event.preventDefault();
+    }, { passive: false });
+
+    sheet.addEventListener('touchend', finish, { passive: true });
+    sheet.addEventListener('touchcancel', cancel, { passive: true });
+
+    // Mysz i rysik: ten sam gest, żeby dało się go sprawdzić na komputerze.
+    sheet.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'touch' || event.button !== 0) return;
+      begin(event.clientY, event.target);
+    }, { passive: true });
+
+    sheet.addEventListener('pointermove', (event) => {
+      if (event.pointerType === 'touch' || event.buttons === 0) return;
+      if (move(event.clientY)) document.body.style.userSelect = 'none';
+    }, { passive: true });
+
+    sheet.addEventListener('pointerup', () => {
+      document.body.style.userSelect = '';
+      finish();
+    }, { passive: true });
+
+    sheet.addEventListener('pointercancel', () => {
+      document.body.style.userSelect = '';
+      cancel();
+    }, { passive: true });
+
+    sheet.addEventListener('click', (event) => {
+      if (Date.now() >= guardClick) return;
+      event.stopPropagation();
+      event.preventDefault();
+    }, true);
+  }
+
   function attachSwipe(element) {
     const START_SLOP = 8;
     const DRAG_GAIN = 0.7;
@@ -5104,6 +5299,7 @@
     viewport().addEventListener('click', onViewportClick);
     attachSwipe(viewport());
     attachPullToRefresh(viewport());
+    attachSheetDismiss($('sheet'));
 
     $('sheetScrim').addEventListener('click', closeSheet);
     $('dialogScrim').addEventListener('click', closeDialog);

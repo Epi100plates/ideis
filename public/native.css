@@ -1355,6 +1355,13 @@ a.text-btn { text-decoration: none; display: inline-flex; align-items: center; j
 
 @keyframes sheet-up { from { transform: translateY(16px); opacity: .6 } to { transform: none; opacity: 1 } }
 
+/* Zsuwanie arkusza palcem (`attachSheetDismiss` w app.js): podczas gestu arkusz
+   idzie za palcem bez animacji, po puszczeniu wraca sprężyście, a przy
+   zamknięciu wyjeżdża poza ekran. Tło przygasa razem z nim. */
+.sheet.dragging { transition: none; animation: none; }
+.sheet.is-settling { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+.sheet.is-closing { transition: transform .18s ease-in; animation: none; }
+
 .sheet-grab {
   flex: 0 0 auto;
   width: 32px;
@@ -1363,6 +1370,8 @@ a.text-btn { text-decoration: none; display: inline-flex; align-items: center; j
   border-radius: 2px;
   background: var(--text-soft);
   opacity: .4;
+  /* Chwyt ma własny gest — przeglądarka nie może zamienić go na przewijanie. */
+  touch-action: none;
 }
 
 .sheet-body {

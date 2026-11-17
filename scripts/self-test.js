@@ -2162,6 +2162,40 @@ test('arkusz i dialog trzymają fokus w środku (trap + inert + powrót)', () =>
   assert.match(html, /id="dialog"[^>]*tabindex="-1"/);
 });
 
+test('arkusz zjeżdża w dół gestem (chwyt nie jest ozdobą)', () => {
+  const app = readRepo('public', 'app.js');
+  const css = readRepo('public', 'native.css');
+  const html = readRepo('public', 'index.html');
+
+  // Chwyt na górze arkusza istnieje w znaczniku i ma własny gest.
+  assert.match(html, /class="sheet-grab"/);
+  assert.match(app, /function attachSheetDismiss\(/);
+  assert.match(app, /attachSheetDismiss\(\$\('sheet'\)\)/, 'gest musi być podpięty przy starcie');
+  assert.match(css, /\.sheet-grab\s*\{[^}]*touch-action:\s*none/, 'chwyt nie może zamieniać gestu na przewijanie');
+
+  // Dotyk i mysz: ten sam gest, dwie ścieżki (jak `attachSwipe`).
+  assert.match(app, /sheet\.addEventListener\('touchstart'/);
+  assert.match(app, /sheet\.addEventListener\('touchmove'/);
+  assert.match(app, /sheet\.addEventListener\('pointermove'/);
+  assert.match(app, /event\.preventDefault\(\)/, 'gest musi blokować przewijanie w trakcie przeciągania');
+
+  // Próg zamykania to odległość **albo** szybkie pstryknięcie — ale pstryknięcie
+  // liczy się dopiero po realnym ruchu (`FLICK_MIN`), inaczej drgnięcie zamykało panel.
+  assert.match(app, /const FLICK_MIN = \d+;/);
+  assert.match(app, /offset > FLICK_MIN && velocity > CLOSE_VELOCITY/);
+  assert.match(app, /Math\.max\(CLOSE_MIN, threshold\)/);
+  // Ciągnięcie z przewiniętej treści należy do listy, nie do arkusza.
+  assert.match(app, /body\.scrollTop <= 0/);
+
+  // Po geście arkusz wraca do stanu wyjściowego — inaczej następne otwarcie
+  // pokazałoby go przesuniętego (albo z wygaszonym tłem).
+  assert.match(app, /classList\.remove\('dragging', 'is-settling', 'is-closing'\)/);
+  assert.match(css, /\.sheet\.is-closing\s*\{[^}]*transition/);
+  assert.match(css, /\.sheet\.dragging\s*\{[^}]*transition:\s*none/);
+  // Po przeciągnięciu nie wolno „kliknąć” wiersza pod palcem.
+  assert.match(app, /guardClick = Date\.now\(\) \+ 350/);
+});
+
 // ------------------------------------------------------- odporne zapisy
 // Notatka i licznik piszą na wolumen. Pełny dysk nie może udawać sukcesu,
 // bo klient widzi wtedy „Zapisano”, a dane przepadają po restarcie.
