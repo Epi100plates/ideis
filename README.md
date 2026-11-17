@@ -67,6 +67,17 @@ curl http://127.0.0.1:3002/health
 Cache planów, katalog grup, materiały i notatki leżą na wolumenie, więc przeżywają
 przebudowę kontenera. Wdrożenie na VPS: [`deploy/push.sh`](deploy/push.sh).
 
+Wydania na GitHubie robią się z tagu — [`release.yml`](.github/workflows/release.yml):
+
+```bash
+git tag -a v1.12 -m "Wydanie 1.12 (18)" && git push origin v1.12
+```
+
+Tag tworzy **Release** z APK pobranym z serwera (ten sam plik, który instalują
+telefony — SHA-256 sprawdzany po drodze) i publikuje obraz
+`ghcr.io/epi100plates/ideis` w GitHub Packages. APK nie jest budowany na runnerze,
+bo bez `keystore.properties` podpisałby się innym kluczem i zablokował aktualizacje.
+
 ## Aplikacja Android
 
 ```bash

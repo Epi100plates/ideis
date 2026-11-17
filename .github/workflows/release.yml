@@ -1,0 +1,159 @@
+name: Wydanie
+
+# Wydanie na GitHubie robi się samo z tego, co już opublikowane na serwerze:
+# tag v<versionName> (np. v1.12) → Release z APK + latest.json i obraz do ghcr.io.
+#
+# APK **nie jest budowany tutaj** celowo: w repo nie ma keystore.properties, więc
+# build na runnerze podpisałby plik innym kluczem debug i użytkownicy nie mogliby
+# zainstalować aktualizacji na wcześniejsze wydanie. Bierzemy więc dokładnie ten
+# plik, który aplikacje pobierają z ideis.mati-it.pl, i tylko sprawdzamy SHA-256.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  BASE: https://ideis.mati-it.pl
+
+jobs:
+  release:
+    name: Release z APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wersja z version.properties
+        id: version
+        run: |
+          set -euo pipefail
+          code=$(sed -n 's/^versionCode=//p' android/version.properties | tr -d '[:space:]')
+          name=$(sed -n 's/^versionName=//p' android/version.properties | tr -d '[:space:]')
+          test -n "$code" && test -n "$name"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Pobierz opublikowany APK i sprawdź SHA-256
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          curl -fsS -m 60 "$BASE/api/app/latest?versionCode=0" -o dist/latest.json
+
+          remote_code=$(jq -r '.versionCode' dist/latest.json)
+          apk=$(jq -r '.apkFile' dist/latest.json)
+          want=$(jq -r '.sha256' dist/latest.json)
+
+          if [ "$remote_code" != "${{ steps.version.outputs.code }}" ]; then
+            echo "::error::Serwer ma versionCode=$remote_code, a w repo ${{ steps.version.outputs.code }} — najpierw publish-apk.ps1"
+            exit 1
+          fi
+
+          curl -fsS -m 300 "$BASE/api/app/download/$apk" -o "dist/$apk"
+          got=$(sha256sum "dist/$apk" | cut -d' ' -f1)
+          if [ "$want" != "$got" ]; then
+            echo "::error::SHA-256 pobranego APK ($got) różni się od manifestu ($want)"
+            exit 1
+          fi
+          echo "apk=$apk" >> "$GITHUB_ENV"
+
+      - name: Opis wydania
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          set -euo pipefail
+          notes=$(jq -r '.notes' dist/latest.json)
+          size=$(jq -r '.sizeBytes' dist/latest.json)
+          sha=$(jq -r '.sha256' dist/latest.json)
+          {
+            echo "### Zmiany w $VERSION_NAME ($VERSION_CODE)"
+            echo
+            printf '%s\n' "$notes" | awk 'length($0) { print "- " $0 }'
+            echo
+            echo "| Co | Wartość |"
+            echo "| --- | --- |"
+            echo "| APK | \`$apk\` |"
+            echo "| SHA-256 | \`$sha\` |"
+            echo "| Rozmiar | $size B |"
+            echo "| Podpis | klucz debug — ten sam co w poprzednich wydaniach, więc aktualizacja wchodzi na zainstalowaną aplikację |"
+            echo "| Aktualizacje w aplikacji | $BASE/api/app/latest |"
+            echo "| Wersja w przeglądarce | https://ideis.mati-it.pl |"
+            echo
+            echo "Plik \`latest.json\` to manifest, który serwer podaje aplikacjom (wersja, SHA-256, lista zmian)."
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Utwórz Release i dołącz APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          # workflow_dispatch nie ma tagu — tworzymy go z numeru wersji.
+          case "$tag" in
+            v*) ;;
+            *) tag="v$VERSION_NAME" ;;
+          esac
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::Wydanie $tag już istnieje — podbij wersję w android/version.properties"
+            exit 1
+          fi
+          gh release create "$tag" \
+            --title "$VERSION_NAME ($VERSION_CODE)" \
+            --notes-file release-notes.md \
+            "dist/$apk" \
+            dist/latest.json
+
+  package:
+    name: Obraz w ghcr.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wersja z version.properties
+        id: version
+        run: |
+          set -euo pipefail
+          name=$(sed -n 's/^versionName=//p' android/version.properties | tr -d '[:space:]')
+          test -n "$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Nazwa obrazu (ghcr wymaga małych liter)
+        id: image
+        run: |
+          set -euo pipefail
+          image="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "$image"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ steps.image.outputs.image }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.name }}
+            type=raw,value=latest
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

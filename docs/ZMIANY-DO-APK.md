@@ -1413,3 +1413,13 @@ bierze się z motywu, więc działa też w „Własnym”. `native.css` nie uży
 | Wydanie APK | **wykonane 17.11.2026** — `publish-apk.ps1 -VersionCode 18 -VersionName 1.12 -Upload`: `planzajec-ideis-1.12-18.apk`, 2 627 308 B, SHA-256 `3b8e650a1b1abf1b0260ef489732e0b56e77875909ea5cb896812bf0f337d16a`; `/api/app/latest?versionCode=16` → kod 18, `updateAvailable: true`, polskie znaki w `notes` bez zmian |
 | Podpis wydania | certyfikat **ten sam co w opublikowanym 1.10 (16)** — `CN=Android Debug`, SHA-256 `a35d055c…ed0ed26` — więc aktualizacja wchodzi na zainstalowaną aplikację bez odinstalowania (w repo nie ma `keystore.properties`, wydanie podpisuje klucz debug) |
 | Wydanie release (R8) na emulatorze | plik **pobrany z serwera** i zainstalowany: start bez wyjątków w logcat, „Co nowego 1.12 (18)”, plan z produkcji (grupa 21188) z plakietką notatki „Test notka” (szkło), Opcje → Wygląd → „Własny” z dwoma kolorami i trzema suwakami, motyw własny utrzymuje się po restarcie, podglądy obu widżetów renderują się w wyborze widgetów; kafelka na pulpit nie udało się dodać automatem przez `adb` (launcher wymaga przeciągnięcia palcem) |
+
+### Wydania na GitHubie (`release.yml`)
+
+| Element | Jak działa |
+| --- | --- |
+| wyzwalacz | tag `v*` (`git push origin v1.12`) albo ręczne `workflow_dispatch` |
+| Release | `gh release create` z APK **pobranym z ideis.mati-it.pl** + `latest.json`; przed publikacją porównywany `versionCode` z `android/version.properties` i SHA-256 z manifestu |
+| dlaczego nie buduje APK | bez `keystore.properties` build na runnerze podpisałby plik innym kluczem debug i zablokował aktualizacje (podpis musi zostać ten sam co w 1.10/1.12) |
+| Packages | `docker/build-push-action` → `ghcr.io/epi100plates/ideis:{1.12,latest,sha-…}` z `Dockerfile` (obraz bez zależności npm, buduje się w ~sekundy) |
+| uprawnienia | `contents: write` + `packages: write` z `GITHUB_TOKEN`, żadnych sekretów w repo |
